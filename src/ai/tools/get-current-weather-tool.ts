@@ -3,7 +3,7 @@
  * @fileOverview A Genkit tool for fetching current weather (simulated).
  */
 
-import {ai} from '@/ai/groq';
+import { defineTool } from '@genkit-ai/ai';
 import {z} from 'zod';
 
 const GetCurrentWeatherInputSchema = z.object({
@@ -19,7 +19,7 @@ const GetCurrentWeatherOutputSchema = z.object({
   dataSource: z.string().describe('Indicates that the data is simulated.'),
 });
 
-export const getCurrentWeatherTool = ai.defineTool(
+export const getCurrentWeatherTool = defineTool(
   {
     name: 'getCurrentWeather',
     description: 'Provides the current weather conditions for a specified location. IMPORTANT: This tool currently provides SIMULATED weather data as it is not connected to a live weather API.',
