@@ -1,0 +1,454 @@
+import type { FC, ReactNode } from 'react';
+import type { Message } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { 
+  BrainCircuit as AiIcon, 
+  Loader2, 
+  User, 
+  ClipboardCopy, 
+  ClipboardCheck, 
+  Lightbulb,
+  FileText,
+  Sparkles,
+  Target
+} from 'lucide-react';
+import NextImage from 'next/image'; 
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { sendMessage } from '@/store/chat-store';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+
+interface ChatMessageItemProps {
+  message: Message;
+}
+
+const ChatMessageItem: FC<ChatMessageItemProps> = ({ message }) => {
+  const isUser = message.sender === 'user';
+  const [isCopied, setIsCopied] = useState(false);
+  const [isSimplifying, setIsSimplifying] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const { toast } = useToast();
+
+  const handleCopy = async () => {
+    if (!message.text && !message.aiGeneratedImageUrl && !message.imageDataUri) return;
+    
+    let textToCopy = message.text || '';
+    if (message.aiGeneratedImageUrl) {
+      textToCopy += `\n[AI Generated Image: ${message.aiGeneratedImageUrl}]`; // Or just the URL
+    }
+    if (message.imageDataUri) {
+      textToCopy += `\n[User Image: ${message.imageFileName || 'attached image'}]`;
+    }
+
+    try {
+      await navigator.clipboard.writeText(textToCopy.trim());
+      setIsCopied(true);
+      toast({
+        description: "Content copied!",
+        duration: 2000,
+      });
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to copy content.",
+        variant: "destructive",
+        duration: 3000,
+      });
+ setIsCopied(false);
+    }
+  };
+
+  const handleSimplify = async () => {
+    if (!message.text || isUser) return;
+    
+    setIsSimplifying(true);
+    try {
+      const simplifyPrompt = `Please explain this in the ULTRA ULTRA SIMPLEST terms possible, using completely different words and explanations. Avoid using ANY of the same terminology from the original text. Make it so simple that a 5-year-old could understand it.
+
+**Rules:**
+- Use the most basic, everyday words possible
+- Replace ALL technical terms with simple alternatives
+- Use completely different sentence structures
+- Break everything into tiny, digestible pieces
+- Use analogies and examples from everyday life
+- Avoid any jargon or complex language
+- Make it conversational and friendly
+
+Original text to simplify:
+${message.text}
+
+Now explain this in ultra simple terms:`;
+      
+      await sendMessage(simplifyPrompt);
+      
+      toast({
+        description: "Making it ultra simple...",
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Error simplifying text:', error);
+      toast({
+        title: "Error",
+        description: "Failed to simplify text.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsSimplifying(false);
+    }
+  };
+
+  const handleSummarize = async (type: 'simple' | 'accurate') => {
+    if (!message.text || isUser) return;
+    
+    setIsSummarizing(true);
+    try {
+      let summarizePrompt = '';
+      
+      if (type === 'accurate') {
+        summarizePrompt = `Please provide an **EXTREMELY, EXTREMELY, DEEPLY, TOTALLY, SYSTEMATICALLY, TOO POWERFULLY ACCURATE** summary of this text. You must be **WISELY, SMARTLY, WITHOUT FORGETTING, MIXING THINGS UP, BE TOO SPECIFIC, EXTREMELY BE UNMISTAKENLY, NO WAY TO MAKE MISTAKES, AND IMPOSSIBLE TO MAKE MISTAKES**.
+
+**ACCURATE SUMMARY REQUIREMENTS:**
+- **PERFECT ACCURACY**: Every fact, detail, and point must be **100% ACCURATE**
+- **COMPLETE COMPREHENSION**: Understand **EVERY SINGLE DETAIL** without forgetting anything
+- **ZERO MIXING UP**: **NEVER MIX THINGS UP** or confuse different parts
+- **EXTREME SPECIFICITY**: Be **TOO SPECIFIC** - no generalities, only precise details
+- **UNMISTAKABLE PRECISION**: **NO WAY TO MAKE MISTAKES** in your summary
+- **IMPOSSIBLE TO BE WRONG**: Your summary must be **IMPOSSIBLE TO MAKE MISTAKES**
+- **COMPLETE COVERAGE**: Include **ALL IMPORTANT POINTS** with perfect accuracy
+- **LOGICAL FLOW**: Maintain perfect logical structure and flow
+- **SOURCE FIDELITY**: Stay **100% FAITHFUL** to the original content
+
+Original text to summarize with EXTREME ACCURACY:
+${message.text}
+
+Provide an **EXTREMELY ACCURATE** summary:`;
+      } else {
+        summarizePrompt = `Please provide an **EXTREMELY, EXTREMELY, DEEPLY, TOTALLY, SYSTEMATICALLY, TOO POWERFULLY SIMPLE** summary of this text. Use the **SIMPLEST TERMS, SIMPLEST WORDS AND EXPLAINING, WISELY, SMARTLY, WITHOUT FORGETTING, MIXING THINGS UP, BE TOO SPECIFIC, EXTREMELY BE UNMISTAKENLY, NO WAY TO MAKE MISTAKES, AND IMPOSSIBLE TO MAKE MISTAKES**.
+
+**SIMPLE SUMMARY REQUIREMENTS:**
+- **ULTRA SIMPLE LANGUAGE**: Use the **SIMPLEST WORDS POSSIBLE** that anyone can understand
+- **BASIC EXPLANATIONS**: Explain everything in the **MOST BASIC TERMS**
+- **EVERYDAY LANGUAGE**: Use only **EVERYDAY, COMMON WORDS**
+- **NO TECHNICAL TERMS**: Replace ALL complex terms with **SIMPLE ALTERNATIVES**
+- **SHORT SENTENCES**: Use **VERY SHORT, CLEAR SENTENCES**
+- **STEP-BY-STEP**: Break everything into **TINY, EASY PIECES**
+- **CONVERSATIONAL TONE**: Make it sound like **TALKING TO A FRIEND**
+- **ZERO JARGON**: **NO COMPLEX LANGUAGE** whatsoever
+- **PERFECT CLARITY**: Make it **IMPOSSIBLE TO MISUNDERSTAND**
+
+Original text to summarize in **ULTRA SIMPLE TERMS**:
+${message.text}
+
+Provide an **EXTREMELY SIMPLE** summary:`;
+      }
+      
+      await sendMessage(summarizePrompt);
+      
+      toast({
+        description: type === 'accurate' ? "Creating extremely accurate summary..." : "Creating ultra simple summary...",
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Error summarizing text:', error);
+      toast({
+        title: "Error",
+        description: "Failed to summarize text.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const renderMessageContent = (text: string): ReactNode[] => {
+    const parts: ReactNode[] = [];
+    let lastIndex = 0;
+    
+    // Enhanced regex to handle multiple markdown patterns
+    const markdownRegex = /(```(\w*\s*)\n([\s\S]*?)```|(\*\*.*?\*\*)|(##\s+.*?$|###\s+.*?$)|(`[^`]+`))/gm;
+    let match;
+
+    while ((match = markdownRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, match.index)}</span>);
+      }
+      
+      const fullMatch = match[0];
+      
+      // Code blocks
+      if (fullMatch.startsWith('```')) {
+        const language = match[2]?.trim() || 'plaintext';
+        const code = match[3];
+        parts.push(
+          <div key={`code-block-wrapper-${lastIndex}`} className="my-2 rounded-md overflow-hidden bg-[#1E1E1E]">
+            <SyntaxHighlighter
+              language={language}
+              style={vscDarkPlus}
+              PreTag="div"
+              className="text-sm"
+              customStyle={{ margin: '0', padding: '0.5rem', backgroundColor: 'transparent' }}
+              codeTagProps={{style: {fontFamily: "var(--font-code, monospace)"}}}
+            >
+              {code.trim()}
+            </SyntaxHighlighter>
+          </div>
+        );
+      }
+      // Bold text
+      else if (fullMatch.startsWith('**') && fullMatch.endsWith('**')) {
+        const boldText = fullMatch.slice(2, -2);
+        parts.push(
+          <strong key={`bold-${lastIndex}`} className="font-bold text-foreground">
+            {boldText}
+          </strong>
+        );
+      }
+      // Headers
+      else if (fullMatch.startsWith('##') || fullMatch.startsWith('###')) {
+        const isH2 = fullMatch.startsWith('##');
+        const headerText = fullMatch.replace(/^#{2,3}\s+/, '');
+        const HeaderTag = isH2 ? 'h2' : 'h3';
+        parts.push(
+          <HeaderTag key={`header-${lastIndex}`} className={`font-bold text-foreground ${isH2 ? 'text-lg' : 'text-base'} mt-4 mb-2`}>
+            {headerText}
+          </HeaderTag>
+        );
+      }
+      // Inline code
+      else if (fullMatch.startsWith('`') && fullMatch.endsWith('`')) {
+        const codeText = fullMatch.slice(1, -1);
+        parts.push(
+          <code key={`inline-code-${lastIndex}`} className="bg-muted px-1 py-0.5 rounded text-sm font-mono">
+            {codeText}
+          </code>
+        );
+      }
+      
+      lastIndex = markdownRegex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex)}</span>);
+    }
+    
+    // Handle single code block case
+    if (parts.length === 0 && text.startsWith('```') && text.endsWith('```')) {
+        const singleMatch = /```(\w*\s*)\n([\s\S]*?)```/.exec(text);
+        if (singleMatch) {
+            const language = singleMatch[1]?.trim() || 'plaintext';
+            const code = singleMatch[2];
+             parts.push(
+               <div key="code-block-wrapper-single" className="my-2 rounded-md overflow-hidden bg-[#1E1E1E]">
+                <SyntaxHighlighter
+                  language={language}
+                  style={vscDarkPlus}
+                  PreTag="div"
+                  className="text-sm"
+                  customStyle={{ margin: '0', padding: '0.5rem', backgroundColor: 'transparent'}}
+                  codeTagProps={{style: {fontFamily: "var(--font-code, monospace)"}}}
+                >
+                  {code.trim()}
+                </SyntaxHighlighter>
+              </div>
+            );
+        } else {
+             parts.push(<span key="text-fallback">{text}</span>); 
+        }
+    }
+    return parts.length > 0 ? parts : [<span key="text-only">{text}</span>]; 
+  };
+
+
+
+  const displayedText = message.text || (message.isLoading && message.sender === 'ai' ? '' : '');
+
+  return (
+    <div className={cn('group flex items-start gap-2 my-3', isUser ? 'flex-row-reverse' : 'flex-row')}>
+      <Avatar className={cn(
+          "h-8 w-8 self-start shrink-0",
+          // For AI: Force rounded-lg, maintain overflow-hidden, and add 3D shadow
+          !isUser && "!rounded-lg overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)]",
+          // For User: Add obvious, clean, soft 3D styling
+          isUser && "rounded-full bg-card/20 border border-border/50 shadow-[inset_0_1px_2px_hsl(var(--foreground)_/_0.1),0_2px_4px_hsl(var(--foreground)_/_0.08)]"
+        )}>
+        <AvatarFallback className={cn(
+          isUser ? "bg-card/20 text-foreground/90 rounded-full" :
+            // For AI: Soft muted background and contrasting icon color
+            "bg-muted text-muted-foreground",
+          // For AI: Force rounded-lg to match the Avatar container's new shape
+          !isUser && "!rounded-lg"
+        )}>
+          {isUser ? <User size={18} /> : <AiIcon size={18} />}
+        </AvatarFallback>
+      </Avatar>
+
+      <div className={cn("flex flex-col flex-1", isUser ? "items-end" : "items-start")}>
+        <div
+          className={cn(
+            'max-w-[85%] md:max-w-[75%]', // Adjusted max-width
+            isUser
+              ? 'bg-white/90 backdrop-blur-sm text-black rounded-lg px-3 py-2 md:px-4 md:py-2 rounded-br-none border border-white/40 shadow-[inset_0_1px_2px_hsl(0_0%_100%_/_0.15),0_2px_6px_hsl(var(--foreground)_/_0.06)] hover:shadow-[inset_0_1px_2px_hsl(0_0%_100%_/_0.2),0_3px_8px_hsl(var(--foreground)_/_0.08)] ultra-smooth-transition'
+              : 'bg-card/60 backdrop-blur-sm text-card-foreground rounded-lg px-3 py-2 md:px-4 md:py-2 rounded-bl-none border border-card/40 shadow-[inset_0_1px_2px_hsl(var(--card)_/_0.15),0_2px_6px_hsl(var(--foreground)_/_0.06)] hover:shadow-[inset_0_1px_2px_hsl(var(--card)_/_0.2),0_3px_8px_hsl(var(--foreground)_/_0.08)] ultra-smooth-transition' // AI bubble style
+          )}
+        >
+          {message.isLoading && !displayedText && !message.aiGeneratedImageUrl && !message.imageDataUri ? (
+            <div className="flex items-center justify-center space-x-2 py-1">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Pulse Ai</span>
+            </div>
+          ) : (
+            <>
+              {message.sender === 'user' && message.imageDataUri && (
+                <div className="mb-2">
+                  {message.imageFileName && <p className="text-xs text-primary-foreground/80 mb-1 truncate">{message.imageFileName}</p>}
+                  <NextImage src={message.imageDataUri} alt="User upload" width={200} height={200} className="rounded-md max-w-full h-auto max-h-60 object-contain" />
+                </div>
+              )}
+               {message.sender === 'ai' && message.aiGeneratedImageUrl && (
+                <div className="mb-2">
+                   <NextImage src={message.aiGeneratedImageUrl} alt="AI generated image" width={300} height={300} className="rounded-md max-w-full h-auto max-h-80 object-contain bg-muted" />
+                </div>
+              )}
+              {displayedText ? (
+                <div className="text-sm whitespace-pre-wrap break-words">
+                  {isUser ? displayedText : renderMessageContent(displayedText).map((part, index) => <div key={index}>{part}</div>)}
+                  {/* Blinking cursor removed */}
+                </div>
+              ) : (
+                // If there's an image but no text yet, and it's loading, show nothing for text part
+                message.isLoading && (message.aiGeneratedImageUrl || message.imageDataUri) ? null : null 
+              )}
+            </>
+          )}
+        </div>
+        
+        {(!message.isLoading || message.text || message.aiGeneratedImageUrl || message.imageDataUri) && (
+           <div className={cn(
+              "flex items-center mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 gap-1",
+               isUser ? "justify-end" : "justify-start"
+            )}>
+            <Button
+              variant="ghost"
+              onClick={handleCopy}
+              className={cn(
+                "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3] shadow-[0_1px_2px_hsl(var(--foreground)_/_0.07)] hover:shadow-[0_1px_3px_hsl(var(--foreground)_/_0.1)]",
+                isCopied ? "w-auto px-2 py-1 bg-green-500/15" : "w-7 px-1 justify-center", 
+                "ultra-smooth-transition flex items-center"
+              )}
+              aria-label={isCopied ? "Copied" : "Copy message"}
+              disabled={!message.text && !message.aiGeneratedImageUrl && !message.imageDataUri}
+            >
+              {isCopied ? (
+                <div className="flex items-center gap-1.5">
+                  <ClipboardCheck size={15} className="text-green-600 shrink-0" />
+                  <span className="text-xs text-green-600 whitespace-nowrap">Copied!</span>
+                </div>
+              ) : (
+                <ClipboardCopy size={16} />
+              )}
+            </Button>
+
+            {/* Simplify Button - Only show for AI messages with text */}
+            {!isUser && message.text && (
+              <Button
+                variant="ghost"
+                onClick={handleSimplify}
+                disabled={isSimplifying}
+                className={cn(
+                  "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
+                  "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
+                  "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
+                  "border border-white/10 hover:border-white/20",
+                  "backdrop-blur-sm",
+                  isSimplifying ? "w-auto px-2 py-1 bg-blue-500/15" : "w-7 px-1 justify-center", 
+                  "ultra-smooth-transition flex items-center"
+                )}
+                aria-label={isSimplifying ? "Simplifying..." : "Simplify text"}
+              >
+                {isSimplifying ? (
+                  <div className="flex items-center gap-1.5">
+                    <Loader2 size={15} className="animate-spin text-blue-600 shrink-0" />
+                    <span className="text-xs text-blue-600 whitespace-nowrap">Simplifying...</span>
+                  </div>
+                ) : (
+                  <Lightbulb size={16} />
+                )}
+              </Button>
+            )}
+
+            {/* Summarize Button - Only show for AI messages with text */}
+            {!isUser && message.text && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    disabled={isSummarizing}
+                    className={cn(
+                      "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
+                      "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
+                      "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
+                      "border border-white/10 hover:border-white/20",
+                      "backdrop-blur-sm",
+                      isSummarizing ? "w-auto px-2 py-1 bg-purple-500/15" : "w-7 px-1 justify-center", 
+                      "ultra-smooth-transition flex items-center"
+                    )}
+                    aria-label={isSummarizing ? "Summarizing..." : "Summarize text"}
+                  >
+                    {isSummarizing ? (
+                      <div className="flex items-center gap-1.5">
+                        <Loader2 size={15} className="animate-spin text-purple-600 shrink-0" />
+                        <span className="text-xs text-purple-600 whitespace-nowrap">Summarizing...</span>
+                      </div>
+                    ) : (
+                      <FileText size={16} />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem 
+                    onClick={() => handleSummarize('simple')}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Sparkles size={16} className="text-green-600" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">Simple</span>
+                      <span className="text-xs text-muted-foreground">Ultra simple terms</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => handleSummarize('accurate')}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Target size={16} className="text-blue-600" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">Accurate</span>
+                      <span className="text-xs text-muted-foreground">Extremely precise</span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ChatMessageItem;
+
+
+    
