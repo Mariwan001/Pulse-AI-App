@@ -9,7 +9,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
-    const stream = simplifyText({ originalText: text });
+    const stream = await simplifyText({ originalText: text });
     
     return new Response(stream, {
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },

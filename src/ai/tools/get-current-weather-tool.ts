@@ -3,7 +3,6 @@
  * @fileOverview A Genkit tool for fetching current weather (simulated).
  */
 
-import { defineTool } from '@genkit-ai/ai';
 import {z} from 'zod';
 
 const GetCurrentWeatherInputSchema = z.object({
@@ -19,30 +18,25 @@ const GetCurrentWeatherOutputSchema = z.object({
   dataSource: z.string().describe('Indicates that the data is simulated.'),
 });
 
-export const getCurrentWeatherTool = defineTool(
-  {
-    name: 'getCurrentWeather',
-    description: 'Provides the current weather conditions for a specified location. IMPORTANT: This tool currently provides SIMULATED weather data as it is not connected to a live weather API.',
-    inputSchema: GetCurrentWeatherInputSchema,
-    outputSchema: GetCurrentWeatherOutputSchema,
-  },
-  async (input) => {
-    // Simulate weather data
-    const simulatedConditions = [
-      { temp: "22°C (72°F)", condition: "Sunny with a light breeze", humidity: "55%", wind: "5 km/h North" },
-      { temp: "15°C (59°F)", condition: "Partly cloudy", humidity: "65%", wind: "10 km/h West" },
-      { temp: "28°C (82°F)", condition: "Clear skies, very warm", humidity: "40%", wind: "3 km/h East" },
-      { temp: "10°C (50°F)", condition: "Overcast with a chance of rain", humidity: "75%", wind: "15 km/h South" },
-    ];
-    const randomCondition = simulatedConditions[Math.floor(Math.random() * simulatedConditions.length)];
+export type GetCurrentWeatherInput = z.infer<typeof GetCurrentWeatherInputSchema>;
+export type GetCurrentWeatherOutput = z.infer<typeof GetCurrentWeatherOutputSchema>;
 
-    return {
-      location: input.location,
-      temperature: randomCondition.temp,
-      condition: randomCondition.condition,
-      humidity: randomCondition.humidity,
-      wind: randomCondition.wind,
-      dataSource: 'Simulated Weather Data - Not Real-Time',
-    };
-  }
-);
+export async function getCurrentWeatherTool(input: GetCurrentWeatherInput): Promise<GetCurrentWeatherOutput> {
+  // Simulate weather data
+  const simulatedConditions = [
+    { temp: "22°C (72°F)", condition: "Sunny with a light breeze", humidity: "55%", wind: "5 km/h North" },
+    { temp: "15°C (59°F)", condition: "Partly cloudy", humidity: "65%", wind: "10 km/h West" },
+    { temp: "28°C (82°F)", condition: "Clear skies, very warm", humidity: "40%", wind: "3 km/h East" },
+    { temp: "10°C (50°F)", condition: "Overcast with a chance of rain", humidity: "75%", wind: "15 km/h South" },
+  ];
+  const randomCondition = simulatedConditions[Math.floor(Math.random() * simulatedConditions.length)];
+
+  return {
+    location: input.location,
+    temperature: randomCondition.temp,
+    condition: randomCondition.condition,
+    humidity: randomCondition.humidity,
+    wind: randomCondition.wind,
+    dataSource: 'Simulated Weather Data - Not Real-Time',
+  };
+}
