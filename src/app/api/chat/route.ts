@@ -150,7 +150,7 @@ async function* generateAIResponse(
         }
       }
     },
-    run: async (args: { subject: string; question: string; answer: string; answerType: string }) => {
+    run: async (args: { subject: string; question: string; answer: string; answerType: "calculation" | "factual" | "analytical" | "creative" | "essay" }) => {
       return await academicValidationTool(args);
     },
   };
