@@ -1,6 +1,6 @@
 'use server';
 
-import { hf } from '@/ai/groq';
+import { ai } from '@/ai/groq';
 import { z } from 'zod';
 
 const TranslateTextInputSchema = z.object({
@@ -24,33 +24,35 @@ Your translation should:
 - Preserve any cultural context or nuances where possible
 - Avoid literal translations that might sound awkward
 
-Translation: `;
+Translation:`;
 
 export async function translateText(
   input: TranslateTextInput
 ): Promise<ReadableStream<Uint8Array>> {
+  // Validate input
+  TranslateTextInputSchema.parse(input);
+
+  // Render the prompt
   const renderedPrompt = PROMPT_TEMPLATE
     .replace("{{{originalText}}}", input.originalText)
     .replace("{{{targetLanguage}}}", input.targetLanguage);
 
-  const response = await hf.textGenerationStream({
-    model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
-    inputs: renderedPrompt,
-    parameters: {
-      max_new_tokens: 1024,
-      temperature: 0.7,
-      top_p: 0.95,
-      repetition_penalty: 1.1,
-    },
-  });
+  // Prepare messages for the AI
+  const messages = [
+    { role: 'system', content: 'You are an expert translator.' },
+    { role: 'user', content: renderedPrompt }
+  ];
 
+  // Create a ReadableStream from ai.generateStream
   const encoder = new TextEncoder();
   return new ReadableStream({
     async start(controller) {
+      let translation = '';
       try {
-        for await (const chunk of response) {
-          if (chunk.token.text) {
-            controller.enqueue(encoder.encode(chunk.token.text));
+        for await (const chunk of ai.generateStream({ messages })) {
+          if (chunk.type === 'text' && chunk.content) {
+            translation += chunk.content;
+            controller.enqueue(encoder.encode(chunk.content));
           }
         }
       } catch (error) {
