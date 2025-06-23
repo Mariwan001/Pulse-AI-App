@@ -1,6 +1,6 @@
 'use server';
 
-import { hf } from '@/ai/genkit';
+import { hf } from '@/ai/groq';
 import { z } from 'zod';
 
 const TranslateTextInputSchema = z.object({

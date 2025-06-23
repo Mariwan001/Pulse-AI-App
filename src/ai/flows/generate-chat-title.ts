@@ -8,8 +8,8 @@
  * - GenerateChatTitleOutput - The output type for the generateChatTitle function, which is a string representing the generated title.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {ai} from '@/ai/groq';
+import {z} from 'zod';
 
 const GenerateChatTitleInputSchema = z.object({
   chatHistory: z

@@ -1,11 +1,10 @@
-
 'use server';
 /**
  * @fileOverview A Genkit tool for fetching current weather (simulated).
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {ai} from '@/ai/groq';
+import {z} from 'zod';
 
 const GetCurrentWeatherInputSchema = z.object({
   location: z.string().describe('The city or area for which to get the weather (e.g., "London", "Tokyo"). This field is required.'),
