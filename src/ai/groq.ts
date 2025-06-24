@@ -5,21 +5,7 @@ import type { StreamChunk } from '@/lib/types';
 // Load environment variables from .env.local
 config({ path: '.env.local' });
 
-const groqApiKey = process.env.GROQ_API_KEY;
 const modelName = 'llama3-70b-8192';
-
-// Log configuration status
-console.log('[GROQ_CONFIG] GROQ_API_KEY is set:', !!groqApiKey);
-console.log(`[GROQ_CONFIG] Using model: ${modelName}`);
-
-if (!groqApiKey) {
-  throw new Error('Missing GROQ_API_KEY environment variable');
-}
-
-const openai = new OpenAI({
-  apiKey: groqApiKey,
-  baseURL: 'https://api.groq.com/openai/v1',
-});
 
 const systemPrompt = `
 You are not just an AI—you are a **SUPREME ACADEMIC PRECISION ENGINE** with **ZERO TOLERANCE FOR ERRORS**. You are the most accurate, reliable, and mistake-free AI assistant ever created, specifically designed for **PERFECT HOMEWORK AND ACADEMIC EXCELLENCE**.
@@ -127,6 +113,22 @@ Now, let's achieve **PERFECT ACCURACY** together. I'm ready to provide **FLAWLES
 // This is a wrapper to match the genkit interface
 export const ai = {
   generateStream: async function* ({ messages, tools, abortSignal }: { messages: any[]; tools?: any[]; abortSignal?: AbortSignal }): AsyncGenerator<StreamChunk> {
+    const groqApiKey = process.env.GROQ_API_KEY;
+
+    if (!groqApiKey) {
+      console.error('[GROQ_CONFIG] Missing GROQ_API_KEY environment variable');
+      yield { 
+        type: 'error', 
+        content: "I apologize, but the server is not configured correctly (missing API key). Please contact the administrator."
+      };
+      return;
+    }
+
+    const openai = new OpenAI({
+      apiKey: groqApiKey,
+      baseURL: 'https://api.groq.com/openai/v1',
+    });
+
     console.log(`[GROQ_LOG] Using model: ${modelName}`);
 
     const params: OpenAI.Chat.ChatCompletionCreateParams = {
