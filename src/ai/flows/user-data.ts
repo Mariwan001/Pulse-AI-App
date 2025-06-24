@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabaseServerClient, supabaseAdmin } from '@/lib/supabase/server';
+import { createSupabaseServerClient, getSupabaseAdminClient } from '@/lib/supabase/server';
 
 // This interface is flexible to allow the AI to define the structure.
 export interface UserProfileData {
@@ -21,6 +21,7 @@ export interface UserData {
  * @returns The user's data, including their profile.
  */
 export async function getUserData(userId: string): Promise<UserData> {
+  const supabaseAdmin = getSupabaseAdminClient();
   const { data, error } = await supabaseAdmin
     .from('users')
     .select('*')
@@ -34,7 +35,7 @@ export async function getUserData(userId: string): Promise<UserData> {
   }
 
   if (data) {
-    return data as UserData;
+    return data as unknown as UserData;
   } else {
     // User does not exist, create a new one.
     const { data: newUser, error: insertError } = await supabaseAdmin
@@ -47,7 +48,7 @@ export async function getUserData(userId: string): Promise<UserData> {
       console.error('Error creating new user:', insertError);
       throw insertError;
     }
-    return newUser as UserData;
+    return newUser as unknown as UserData;
   }
 }
 
