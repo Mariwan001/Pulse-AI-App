@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { ArrowRight } from "lucide-react";
 import React from "react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import type { UserPreferences } from "@/lib/types";
 
 // Animated Text Hook
@@ -184,7 +184,8 @@ export function AIOnboarding({ className, onComplete }: AIOnboardingProps) {
     }
   }, [currentStep]);
 
-  const saveUserPreferences = async (finalPreferences: UserPreferences) => {
+    const saveUserPreferences = async (finalPreferences: UserPreferences) => {
+    const supabase = getSupabaseClient();
     try {
       // Get the currently authenticated user from Supabase
       const { data: { user } } = await supabase.auth.getUser();
