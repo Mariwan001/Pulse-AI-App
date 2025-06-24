@@ -5,7 +5,7 @@ import { getCurrentTimeTool } from '@/ai/tools/get-current-time-tool';
 import { academicValidationTool } from '@/ai/tools/academic-validation-tool';
 import type { StreamChunk, UserPreferences } from '@/lib/types';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase/server';
+import { getSupabaseAdminClient } from '@/lib/supabase/server';
 
 // Helper to convert AsyncGenerator to a ReadableStream
 function AIStream(res: AsyncGenerator<StreamChunk>): ReadableStream {
@@ -29,6 +29,7 @@ function AIStream(res: AsyncGenerator<StreamChunk>): ReadableStream {
 async function getUserPreferences(userId: string): Promise<UserPreferences | null> {
   try {
     // Use the admin client which has service_role privileges
+        const supabaseAdmin = getSupabaseAdminClient();
     const { data, error } = await supabaseAdmin
       .from('user_preferences')
       .select('*')
@@ -39,14 +40,16 @@ async function getUserPreferences(userId: string): Promise<UserPreferences | nul
       return null;
     }
 
+    const anyData = data as any;
+
     return {
-      aiName: data.ai_name || '',
-      userName: data.user_name || '',
-      responseStyle: data.response_style || 'detailed',
-      onboardingCompleted: data.onboarding_completed || false,
-      interests: data.interests || '',
-      tone: data.tone || '',
-      favoriteTopics: data.favorite_topics || ''
+      aiName: anyData.ai_name || '',
+      userName: anyData.user_name || '',
+      responseStyle: anyData.response_style || 'detailed',
+      onboardingCompleted: anyData.onboarding_completed || false,
+      interests: anyData.interests || '',
+      tone: anyData.tone || '',
+      favoriteTopics: anyData.favorite_topics || ''
     };
   } catch (error) {
     console.error('Error fetching user preferences:', error);

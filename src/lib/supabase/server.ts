@@ -37,11 +37,20 @@ export function createSupabaseServerClient() {
   );
 }
 
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set. Please add it to your .env.local file.');
-}
+let supabaseAdmin: ReturnType<typeof createClient> | null = null;
 
-export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export function getSupabaseAdminClient() {
+  if (supabaseAdmin) {
+    return supabaseAdmin;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceKey) {
+    throw new Error('Supabase URL or Service Role Key is not set.');
+  }
+
+  supabaseAdmin = createClient(supabaseUrl, serviceKey);
+  return supabaseAdmin;
+}
