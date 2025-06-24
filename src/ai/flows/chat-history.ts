@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '@/lib/supabaseClient';
+import { getSupabaseClient } from '@/lib/supabaseClient';
 
 export interface ChatMessage {
   id?: string;
@@ -12,6 +12,7 @@ export interface ChatMessage {
 }
 
 export async function saveMessageToHistory(message: ChatMessage) {
+  const supabase = getSupabaseClient();
   const { userId, sessionId, role, content } = message;
   const { data, error } = await supabase
     .from('chat_history')
@@ -39,6 +40,7 @@ export async function saveMessageToHistory(message: ChatMessage) {
 }
 
 export async function getChatHistory(userId: string, sessionId: string): Promise<ChatMessage[]> {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('chat_history')
     .select('*')

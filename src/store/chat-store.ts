@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '@/lib/supabaseClient';
+import { getSupabaseClient } from '@/lib/supabaseClient';
 import type { Message, ChatSession, ChatMessage, UserPreferences } from '@/lib/types';
 
 
@@ -53,6 +53,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // --- ACTIONS ---
   initializeAuthAndFetchData: async () => {
+    const supabase = getSupabaseClient();
     if (get().isInitialized) return;
 
     try {
@@ -88,6 +89,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setUserId: (userId) => set({ userId }),
 
   getUserPreferences: async () => {
+    const supabase = getSupabaseClient();
     // First check sessionStorage for the current session's preferences
     const sessionPreferences = sessionStorage.getItem('userPreferences');
     if (sessionPreferences) {
@@ -137,12 +139,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  setUserPreferences: (preferences: UserPreferences) => {
+    setUserPreferences: (preferences: UserPreferences) => {
+    const supabase = getSupabaseClient();
     set({ userPreferences: preferences });
     sessionStorage.setItem('userPreferences', JSON.stringify(preferences));
   },
 
   fetchSessions: async () => {
+    const supabase = getSupabaseClient();
     const { userId } = get();
     if (!userId) return;
 
@@ -189,7 +193,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  loadMessagesForSession: async (sessionId) => {
+    loadMessagesForSession: async (sessionId: string) => {
+    const supabase = getSupabaseClient();
     const { userId, isInitialized } = get();
     if (!isInitialized || !userId) {
       console.error('Cannot load messages: store not initialized or no user ID.');
@@ -275,6 +280,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   deleteSession: async (sessionId: string) => {
+    const supabase = getSupabaseClient();
     const { userId, sessions, activeSessionId } = get();
     if (!userId) return;
 
@@ -304,6 +310,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   clearAllSessions: async () => {
+    const supabase = getSupabaseClient();
     const { userId, sessions, activeSessionId } = get();
     if (!userId) return;
 
@@ -330,6 +337,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   deleteMultipleSessions: async (sessionIds: string[]) => {
+    const supabase = getSupabaseClient();
     const { userId } = get();
     if (!userId) return;
 
