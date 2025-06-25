@@ -64,12 +64,21 @@ async function* generateAIResponse(
   sessionId?: string,
   abortSignal?: AbortSignal
 ): AsyncGenerator<StreamChunk> {
-  let userData = null;
-  let userPreferences = null;
+  let userData: any = null;
+  let userPreferences: UserPreferences | null = null;
+  let history: any[] = [];
 
   if (userId) {
-    userData = await getUserData(userId);
-    userPreferences = await getUserPreferences(userId);
+    const promises = [
+      getUserData(userId),
+      getUserPreferences(userId),
+      sessionId ? getChatHistory(userId, sessionId) : Promise.resolve([]),
+    ];
+
+    const [userDataResult, userPreferencesResult, historyResult] = await Promise.all(promises);
+    userData = userDataResult;
+    userPreferences = userPreferencesResult as UserPreferences | null;
+    history = historyResult as any[];
   }
 
   const updateUserProfileTool = {
@@ -360,8 +369,7 @@ Now, let's have a real conversation. I'm here, I'm listening, and I genuinely ca
 
   messages.push({ role: 'system', content: systemPrompt });
 
-  if (userId && sessionId) {
-    let history = await getChatHistory(userId, sessionId);
+  if (history.length > 0) {
     if (history.length > 0 && history[history.length - 1].role === 'user') {
       history.pop();
     }

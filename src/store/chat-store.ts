@@ -25,8 +25,9 @@ export interface ChatState {
   setActiveSessionId: (sessionId: string | null, loadMessages?: boolean) => void;
   loadMessagesForSession: (sessionId: string) => Promise<void>;
   addMessage: (message: Message) => void;
-  updateStreamingMessage: (chunk: string) => void;
-  finishStreaming: () => void;
+  appendToBuffer: (chunk: string) => void;
+  flushStreamingBuffer: () => void;
+  finishStreaming: (flush: boolean) => void;
   startNewChat: () => void;
   deleteSession: (sessionId: string) => Promise<void>;
   clearAllSessions: () => Promise<void>;
@@ -235,33 +236,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => ({ messages: [...state.messages, message] }));
   },
 
-  updateStreamingMessage: (chunk: string) => {
-    set(state => {
-      if (state.messages.length === 0 || !state.isGenerating) return {};
+  // New actions for buffered streaming
+  appendToBuffer: (chunk) => set(state => ({
+    messages: state.messages.map((msg, index) =>
+      index === state.messages.length - 1 && msg.sender === 'ai'
+        ? { ...msg, text: msg.text + chunk }
+        : msg
+    )
+  })),
 
-      const lastMessage = state.messages[state.messages.length - 1];
+  flushStreamingBuffer: () => { /* This can be a no-op if logic is in component */ },
 
-      // If the last message is from the assistant, append the chunk
-      if (lastMessage.sender === 'ai') {
-        return {
-          messages: [
-            ...state.messages.slice(0, -1),
-            { ...lastMessage, text: lastMessage.text + chunk },
-          ],
-        };
-      } else {
-        // Otherwise, create a new assistant message
-        return {
-          messages: [
-            ...state.messages,
-            { id: uuidv4(), sender: 'ai', text: chunk, timestamp: new Date(), sessionId: state.activeSessionId ?? undefined },
-          ],
-        };
-      }
-    });
-  },
-
-  finishStreaming: () => {
+  finishStreaming: (flush = true) => {
+    if (flush) {
+      get().flushStreamingBuffer();
+    }
     set({ isGenerating: false, abortController: null });
   },
 
@@ -372,7 +361,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
  * This is the primary function for user interaction.
  */
 export const sendMessage = async (query: string, imageDataUri?: string | null): Promise<string | null> => {
-  const { isInitialized, userId, activeSessionId, addMessage, setIsGenerating, setAbortController, updateStreamingMessage, finishStreaming } = useChatStore.getState();
+  const { isInitialized, userId, activeSessionId, addMessage, setIsGenerating, setAbortController, appendToBuffer, finishStreaming } = useChatStore.getState();
 
   // Critical check: Do not proceed if the store is not initialized or if userId is missing.
   if (!isInitialized || !userId) {
@@ -424,12 +413,26 @@ export const sendMessage = async (query: string, imageDataUri?: string | null): 
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    let buffer = '';
     let isFirstChunk = true;
     let newAiMessageId = uuidv4();
 
+    const flushBuffer = () => {
+      if (buffer) {
+        appendToBuffer(buffer);
+        buffer = '';
+      }
+    };
+
+    const flushInterval = setInterval(flushBuffer, 100); // Flush buffer every 100ms
+
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        clearInterval(flushInterval);
+        flushBuffer(); // Final flush
+        break;
+      }
 
       const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split('\n').filter(line => line.trim() !== '');
@@ -437,8 +440,8 @@ export const sendMessage = async (query: string, imageDataUri?: string | null): 
       for (const line of lines) {
         try {
           const parsedChunk = JSON.parse(line);
-          
-          if (isFirstChunk) {
+
+          if (isFirstChunk && parsedChunk.type === 'text') {
             const aiMessage: Message = {
               id: newAiMessageId,
               sender: 'ai',
@@ -449,12 +452,12 @@ export const sendMessage = async (query: string, imageDataUri?: string | null): 
             addMessage(aiMessage);
             isFirstChunk = false;
           }
-          
+
           if (parsedChunk.type === 'text') {
-            updateStreamingMessage(parsedChunk.content);
+            buffer += parsedChunk.content;
           }
           // Handle other chunk types if necessary (e.g., tool_code)
-          
+
         } catch (e) {
           console.error('Error parsing streaming chunk:', e, 'Raw chunk:', line);
         }
@@ -472,6 +475,6 @@ export const sendMessage = async (query: string, imageDataUri?: string | null): 
     }
     return null;
   } finally {
-    finishStreaming();
+    finishStreaming(true); // Ensure final flush and state update
   }
 };

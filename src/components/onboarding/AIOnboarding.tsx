@@ -145,7 +145,8 @@ interface AIOnboardingProps {
 
 type OnboardingStep = "greeting" | "ai-name" | "user-name" | "response-style";
 
-export function AIOnboarding({ className, onComplete }: AIOnboardingProps) {
+function AIOnboarding({ className, onComplete }: AIOnboardingProps) {
+  const [isLoading, setIsLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("greeting");
   const [inputValue, setInputValue] = useState("");
   const [preferences, setPreferences] = useState<UserPreferences>({
@@ -156,6 +157,56 @@ export function AIOnboarding({ className, onComplete }: AIOnboardingProps) {
   });
   const [showInput, setShowInput] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      // 1. Check sessionStorage first for a quick result
+      const onboardingCompleted = sessionStorage.getItem('onboardingCompleted');
+      if (onboardingCompleted === 'true') {
+        const cachedPrefs = sessionStorage.getItem('userPreferences');
+        if (cachedPrefs) {
+          onComplete(JSON.parse(cachedPrefs));
+          return;
+        }
+      }
+
+      // 2. If not in session, check Supabase
+      try {
+        const supabase = getSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data: preferences } = await supabase
+            .from('user_preferences')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+          if (preferences && preferences.onboarding_completed) {
+            const finalPreferences = {
+              aiName: preferences.ai_name,
+              userName: preferences.user_name,
+              responseStyle: preferences.response_style,
+              onboardingCompleted: true,
+            };
+            // Cache in sessionStorage for next time
+            sessionStorage.setItem('userPreferences', JSON.stringify(finalPreferences));
+            sessionStorage.setItem('onboardingCompleted', 'true');
+            onComplete(finalPreferences);
+            return;
+          }
+        }
+      } catch (error) {
+        if (error && (error as any).code !== 'PGRST116') { // PGRST116: No rows found
+          console.error("Error checking onboarding status:", error);
+        }
+      }
+      // 3. If no user or not completed, show onboarding
+      setIsLoading(false);
+    };
+
+    checkOnboardingStatus();
+  }, [onComplete]);
 
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: 60,
@@ -282,6 +333,14 @@ export function AIOnboarding({ className, onComplete }: AIOnboardingProps) {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <div className="text-foreground">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4 transition-all duration-1000", className)}>
       <div className="w-full max-w-2xl mx-auto">
@@ -385,7 +444,4 @@ export function AIOnboarding({ className, onComplete }: AIOnboardingProps) {
   );
 }
 
-// Usage Example
-export default function AIOnboardingDemo() {
-  return <AIOnboarding onComplete={(preferences) => console.log('Onboarding completed:', preferences)} />;
-} 
+export default AIOnboarding; 

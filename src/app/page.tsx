@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AboutSection from '../components/sections/AboutSection';
 import HyperIronicHero from '../components/sections/HyperIronicHero';
 import AnimatedBackground from '../components/sections/AnimatedBackground';
 import { Footer } from "@/components/ui/footer";
-import { AIOnboarding } from "@/components/onboarding/AIOnboarding";
+import AIOnboarding from "@/components/onboarding/AIOnboarding";
 import type { UserPreferences } from "@/lib/types";
 
 export default function HomePage() {
@@ -26,7 +26,7 @@ export default function HomePage() {
     }
   }, []);
 
-  const handleOnboardingComplete = (preferences: UserPreferences) => {
+  const handleOnboardingComplete = useCallback((preferences: UserPreferences) => {
     setUserPreferences(preferences);
     setIsTransitioning(true);
     
@@ -35,7 +35,7 @@ export default function HomePage() {
       setShowOnboarding(false);
       setIsTransitioning(false);
     }, 1000);
-  };
+  }, []);
 
   if (showOnboarding) {
     return (
