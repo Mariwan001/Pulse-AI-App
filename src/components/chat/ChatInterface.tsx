@@ -63,7 +63,7 @@ const ChatInterface: FC = () => {
     }
   }, [messages]);
 
-  const handleSendMessage = (query: string) => {
+  const handleSendMessage = (query: string, imageDataUri?: string | null) => {
     if (!userId) {
       console.error('User ID not set. Cannot send message.');
       return;
@@ -71,7 +71,7 @@ const ChatInterface: FC = () => {
 
     const isNewChat = !activeSessionId;
 
-    sendMessage(query).then(newSessionId => {
+    sendMessage(query, imageDataUri).then(newSessionId => {
       if (isNewChat && newSessionId) {
         router.push(`/chat?session_id=${newSessionId}`, { scroll: false });
       }
@@ -116,6 +116,7 @@ const ChatInterface: FC = () => {
           )}
         </div>
       </ScrollArea>
+      
       <ChatInputBar 
         onSendMessage={handleSendMessage} 
         isGenerating={isGenerating} 

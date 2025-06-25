@@ -12,14 +12,15 @@ import {
   Lightbulb,
   FileText,
   Sparkles,
-  Target
+  Target,
+  UserCircle as HumanIcon
 } from 'lucide-react';
 import NextImage from 'next/image'; 
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { sendMessage } from '@/store/chat-store';
+import { sendMessage, sendHumanizedMessage } from '@/store/chat-store';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,7 @@ const ChatMessageItem: FC<ChatMessageItemProps> = ({ message }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isSimplifying, setIsSimplifying] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isHumanizing, setIsHumanizing] = useState(false);
   const { toast } = useToast();
 
   const handleCopy = async () => {
@@ -170,6 +172,49 @@ Provide an **EXTREMELY SIMPLE** summary:`;
       });
     } finally {
       setIsSummarizing(false);
+    }
+  };
+
+  const handleHumanize = async () => {
+    if (!message.text || isUser) return;
+    
+    setIsHumanizing(true);
+    try {
+      const humanizePrompt = `Please respond to this message in the MOST REALISTIC, HUMAN way possible. Make it incredibly authentic, emotional, and deeply personal. Use natural speech patterns, show genuine emotions, and create a connection that feels like talking to a close friend.
+
+**Make it ultra-humanized with:**
+- Natural conversational flow without artificial indicators
+- Genuine emotional reactions and vulnerability
+- Personal connections and empathy
+- Realistic thinking processes expressed naturally
+- Natural humor and personality quirks
+- Deep emotional depth and authenticity
+- Use contractions, conversational fillers, and natural qualifiers
+- Express uncertainty and complexity in a human way
+
+**IMPORTANT: Do NOT use text like "*pauses*", "*thinking*", "*sighs*", or any other artificial indicators. Just write naturally as a real human would speak.**
+
+Original message to humanize:
+${message.text}
+
+Now respond in the most human, realistic way possible:`;
+      
+      await sendHumanizedMessage(humanizePrompt);
+      
+      toast({
+        description: "Making it ultra-humanized...",
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Error humanizing text:', error);
+      toast({
+        title: "Error",
+        description: "Failed to humanize text.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsHumanizing(false);
     }
   };
 
@@ -385,6 +430,34 @@ Provide an **EXTREMELY SIMPLE** summary:`;
                   </div>
                 ) : (
                   <Lightbulb size={16} />
+                )}
+              </Button>
+            )}
+
+            {/* Humanize Button - Only show for AI messages with text */}
+            {!isUser && message.text && (
+              <Button
+                variant="ghost"
+                onClick={handleHumanize}
+                disabled={isHumanizing}
+                className={cn(
+                  "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
+                  "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
+                  "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
+                  "border border-white/10 hover:border-white/20",
+                  "backdrop-blur-sm",
+                  isHumanizing ? "w-auto px-2 py-1 bg-pink-500/15" : "w-7 px-1 justify-center", 
+                  "ultra-smooth-transition flex items-center"
+                )}
+                aria-label={isHumanizing ? "Humanizing..." : "Humanize text"}
+              >
+                {isHumanizing ? (
+                  <div className="flex items-center gap-1.5">
+                    <Loader2 size={15} className="animate-spin text-pink-600 shrink-0" />
+                    <span className="text-xs text-pink-600 whitespace-nowrap">Humanizing...</span>
+                  </div>
+                ) : (
+                  <HumanIcon size={16} />
                 )}
               </Button>
             )}

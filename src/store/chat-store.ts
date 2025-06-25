@@ -494,3 +494,141 @@ export const sendMessage = async (query: string, imageDataUri?: string | null): 
     finishStreaming(true); // Ensure final flush and state update
   }
 };
+
+/**
+ * Sends a message to the AI with ultra-humanization mode and handles the streaming response.
+ * This creates incredibly realistic, deeply human responses.
+ */
+export const sendHumanizedMessage = async (query: string, imageDataUri?: string | null): Promise<string | null> => {
+  let { isInitialized, userId, activeSessionId, addMessage, setIsGenerating, setAbortController, appendToBuffer, finishStreaming } = useChatStore.getState();
+
+  // Restore userId and sessionId from sessionStorage/localStorage if missing
+  if (!userId) {
+    userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+    if (userId) useChatStore.getState().setUserId(userId);
+  }
+  if (!activeSessionId) {
+    activeSessionId = sessionStorage.getItem('activeSessionId') || localStorage.getItem('activeSessionId');
+    if (activeSessionId) useChatStore.getState().setActiveSessionId(activeSessionId);
+  }
+
+  // Critical check: Do not proceed if the store is not initialized or if userId is missing.
+  if (!isInitialized || !userId) {
+    addMessage({
+      id: uuidv4(),
+      sender: 'ai',
+      text: '❌ Error: Chat session is not initialized. Please refresh the page or try again later.',
+      timestamp: new Date(),
+      sessionId: activeSessionId ?? undefined,
+    });
+    return null;
+  }
+
+  // Abort any ongoing generation
+  useChatStore.getState().abortController?.abort();
+  const newAbortController = new AbortController();
+  setAbortController(newAbortController);
+
+  const userMessage: Message = {
+    id: uuidv4(),
+    sender: 'user',
+    text: query,
+    timestamp: new Date(),
+    sessionId: activeSessionId ?? undefined,
+    imageDataUri: imageDataUri ?? undefined,
+  };
+
+  addMessage(userMessage);
+  setIsGenerating(true);
+
+  // Determine the session ID to use for the API call
+  const sessionIdForApi = activeSessionId || uuidv4();
+
+  try {
+    const response = await fetch('/api/ai/humanize', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: query,
+        userId: userId,
+        sessionId: sessionIdForApi,
+        imageDataUri: imageDataUri,
+      }),
+      signal: newAbortController.signal,
+    });
+
+    if (!response.ok || !response.body) {
+      const errorText = await response.text();
+      throw new Error(`Server error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let isFirstChunk = true;
+    let newAiMessageId = uuidv4();
+
+    const flushBuffer = () => {
+      if (buffer) {
+        appendToBuffer(buffer);
+        buffer = '';
+      }
+    };
+
+    const flushInterval = setInterval(flushBuffer, 20); // Flush buffer every 20ms
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        clearInterval(flushInterval);
+        flushBuffer(); // Final flush
+        break;
+      }
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+      for (const line of lines) {
+        try {
+          const parsedChunk = JSON.parse(line);
+
+          if (isFirstChunk && parsedChunk.type === 'text') {
+            const aiMessage: Message = {
+              id: newAiMessageId,
+              sender: 'ai',
+              text: '',
+              timestamp: new Date(),
+              sessionId: sessionIdForApi,
+            };
+            addMessage(aiMessage);
+            isFirstChunk = false;
+          }
+
+          if (parsedChunk.type === 'text') {
+            buffer += parsedChunk.content;
+          }
+          // Handle other chunk types if necessary (e.g., tool_code)
+
+        } catch (e) {
+          console.error('Error parsing streaming chunk:', e, 'Raw chunk:', line);
+        }
+      }
+    }
+    // Return the new session ID if one was created
+    return !activeSessionId ? sessionIdForApi : null;
+
+  } catch (error) {
+    addMessage({
+      id: uuidv4(),
+      sender: 'ai',
+      text: '❌ Error: AI failed to respond. Please check your connection or try again. [Retry]',
+      timestamp: new Date(),
+      sessionId: activeSessionId ?? undefined,
+    });
+    return null;
+  } finally {
+    finishStreaming(true); // Ensure final flush and state update
+  }
+};
