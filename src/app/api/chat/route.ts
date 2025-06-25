@@ -172,6 +172,9 @@ async function* generateAIResponse(
 
   messages.push({ role: 'system', content: systemPrompt });
 
+  // Debug: Log user preferences to help diagnose missing name
+  console.log('User Preferences:', userPreferences);
+
   // Add personalization based on user preferences
   if (userPreferences) {
     if (userPreferences.aiName) {

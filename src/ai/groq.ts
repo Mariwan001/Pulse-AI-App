@@ -5,7 +5,7 @@ import type { StreamChunk } from '@/lib/types';
 // Load environment variables from .env.local
 config({ path: '.env.local' });
 
-const modelName = 'llama3-70b-8192';
+const modelName = 'llama3-8b-8192';
 
 // This is a wrapper to match the genkit interface
 export const ai = {

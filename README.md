@@ -1,7 +1,4 @@
 # CodePulse: Humanized AI Chat & Creative Platform
-
-![CodePulse Logo](public/logo.png)
-
 ---
 
 ## 🚀 Overview
@@ -129,3 +126,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ---
 
 > _Each day, CodePulse evolves—adding new features, intelligence, and creative depth. This project is more than just code; it's a journey toward redefining how people interact with AI. Exciting things are ahead!_
+

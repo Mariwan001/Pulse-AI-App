@@ -104,6 +104,16 @@ const ChatInterface: FC = () => {
           {messages.map((message, index) => (
             <ChatMessageItem key={`${message.id}-${index}`} message={message} />
           ))}
+          {isGenerating && (
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center bg-muted/40 rounded-lg px-4 py-2">
+                <span className="mr-3 text-muted-foreground text-base font-light">AI is thinking</span>
+                <span className="dot-typing" style={{ fontSize: '1.5rem', letterSpacing: '0.3em', color: '#888' }}>
+                  <span className="dot">.</span><span className="dot">.</span><span className="dot">.</span>
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </ScrollArea>
       <ChatInputBar 

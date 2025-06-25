@@ -361,12 +361,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
  * This is the primary function for user interaction.
  */
 export const sendMessage = async (query: string, imageDataUri?: string | null): Promise<string | null> => {
-  const { isInitialized, userId, activeSessionId, addMessage, setIsGenerating, setAbortController, appendToBuffer, finishStreaming } = useChatStore.getState();
+  let { isInitialized, userId, activeSessionId, addMessage, setIsGenerating, setAbortController, appendToBuffer, finishStreaming } = useChatStore.getState();
+
+  // Restore userId and sessionId from sessionStorage/localStorage if missing
+  if (!userId) {
+    userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+    if (userId) useChatStore.getState().setUserId(userId);
+  }
+  if (!activeSessionId) {
+    activeSessionId = sessionStorage.getItem('activeSessionId') || localStorage.getItem('activeSessionId');
+    if (activeSessionId) useChatStore.getState().setActiveSessionId(activeSessionId);
+  }
 
   // Critical check: Do not proceed if the store is not initialized or if userId is missing.
   if (!isInitialized || !userId) {
-    console.error("sendMessage aborted: Store not initialized or user ID is missing.");
-    // Optionally, show a toast to the user here.
+    addMessage({
+      id: uuidv4(),
+      sender: 'ai',
+      text: '❌ Error: Chat session is not initialized. Please refresh the page or try again later.',
+      timestamp: new Date(),
+      sessionId: activeSessionId ?? undefined,
+    });
     return null;
   }
 
@@ -424,7 +439,7 @@ export const sendMessage = async (query: string, imageDataUri?: string | null): 
       }
     };
 
-    const flushInterval = setInterval(flushBuffer, 100); // Flush buffer every 100ms
+    const flushInterval = setInterval(flushBuffer, 20); // Flush buffer every 20ms
 
     while (true) {
       const { done, value } = await reader.read();
@@ -467,12 +482,13 @@ export const sendMessage = async (query: string, imageDataUri?: string | null): 
     return !activeSessionId ? sessionIdForApi : null;
 
   } catch (error) {
-    if ((error as Error).name === 'AbortError') {
-      console.log('Stream aborted by user.');
-    } else {
-      console.error('Failed to send message:', error);
-      // Optionally, add an error message to the chat UI
-    }
+    addMessage({
+      id: uuidv4(),
+      sender: 'ai',
+      text: '❌ Error: AI failed to respond. Please check your connection or try again. [Retry]',
+      timestamp: new Date(),
+      sessionId: activeSessionId ?? undefined,
+    });
     return null;
   } finally {
     finishStreaming(true); // Ensure final flush and state update
