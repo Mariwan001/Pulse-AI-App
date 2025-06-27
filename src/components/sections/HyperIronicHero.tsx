@@ -754,8 +754,7 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
                     handleSend();
                   }
                 }}
-                className="w-full text-base md:text-lg lg:text-xl relative z-[1] flex-grow bg-transparent text-white border-zinc-600 focus:border-white ultra-smooth glass-morphism !ring-0 !ring-offset-0 resize-none transition-all duration-300 placeholder:text-zinc-400"
-                style={{ minHeight: 48, maxHeight: 180, lineHeight: 1.5 }}
+                className="w-full text-base md:text-lg lg:text-xl relative z-[1] flex-grow bg-transparent text-white border-zinc-600 focus:border-white ultra-smooth glass-morphism !ring-0 !ring-offset-0 resize-none transition-all duration-300 placeholder:text-zinc-400 min-h-[48px] max-h-[180px] leading-[1.5]"
               />
               {inputValue.trim() && (
                 <motion.div
