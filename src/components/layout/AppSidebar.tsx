@@ -16,16 +16,18 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { BrainCircuit, Trash, Loader2, BookOpen, Volume2, Clock, Database, Info, ChevronDown } from "lucide-react";
+import { BrainCircuit, Trash, Loader2, BookOpen, Volume2, Clock, Database, Info, ChevronDown, Calculator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useChatStore } from '@/store/chat-store';
 import { DeleteModal } from '@/components/ui/delete-modal';
 
 interface AppSidebarProps {
   onClearChat: () => Promise<void>;
+  onSectionChange?: (section: string) => void;
+  currentSection?: 'chat' | 'math';
 }
 
-const AppSidebar = ({ onClearChat }: AppSidebarProps) => {
+const AppSidebar = ({ onClearChat, onSectionChange, currentSection }: AppSidebarProps) => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeSessionId = searchParams.get('session_id');
@@ -155,28 +157,36 @@ const AppSidebar = ({ onClearChat }: AppSidebarProps) => {
               <SidebarMenu>
                 {[
                   {
+                    tooltip: "Ultra-powerful math solver",
+                    icon: <Calculator />,
+                    label: "Math",
+                    delay: "100ms",
+                    onClick: () => onSectionChange?.('math'),
+                    isActive: currentSection === 'math',
+                  },
+                  {
                     tooltip: "Grammar tools",
                     icon: <BookOpen />,
                     label: "Grammar",
-                    delay: "100ms",
+                    delay: "150ms",
                   },
                   {
                     tooltip: "Voice tools",
                     icon: <Volume2 />,
                     label: "Voice",
-                    delay: "150ms",
+                    delay: "200ms",
                   },
                   {
                     tooltip: "Temporary chat session",
                     icon: <Clock />,
                     label: "Temporary Chat",
-                    delay: "200ms",
+                    delay: "250ms",
                   },
                   {
                     tooltip: "Database management",
                     icon: <Database />,
                     label: "Database",
-                    delay: "250ms",
+                    delay: "300ms",
                   },
                 ].map((item, index) => (
                   <SidebarMenuItem
@@ -194,6 +204,8 @@ const AppSidebar = ({ onClearChat }: AppSidebarProps) => {
                     <SidebarMenuButton
                       tooltip={item.tooltip}
                       className="group/item flex w-full items-center"
+                      onClick={item.onClick}
+                      isActive={item.isActive}
                     >
                       {item.icon}
                       <span>{item.label}</span>

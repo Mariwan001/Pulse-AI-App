@@ -8,6 +8,7 @@ import { Rocket, XCircle, Aperture, Mic, MicOff } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils'; // For Loader2 cn usage
+import ReactTextareaAutosize from 'react-textarea-autosize';
 
 // Lottie animation data (remains undefined as per previous state)
 const sendButtonAnimationData = undefined; 
@@ -212,14 +213,15 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
         onSubmit={handleSubmit}
         className="flex items-center gap-2"
       >
-        <Input
-          type="text"
-          placeholder="Message Pulse..."
+        <ReactTextareaAutosize
+          minRows={1}
+          maxRows={6}
+          placeholder="Type your message..."
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          className="flex-grow text-sm"
-          disabled={isGenerating || isImageUploading || isLocked}
-          aria-label="Chat input"
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleSubmit(e as any); } }}
+          className="flex-1 h-10 rounded-lg border border-border/50 focus:border-orange-500/50 px-3 py-2 resize-none transition-all duration-300 bg-background text-base leading-relaxed placeholder:text-muted-foreground overflow-hidden"
+          disabled={isGenerating || isImageUploading}
         />
         <Button 
           type="button" 

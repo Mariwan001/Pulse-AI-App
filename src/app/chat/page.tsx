@@ -1,7 +1,7 @@
 "use client"; 
 
 import ChatInterface from '@/components/chat/ChatInterface';
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 import AppSidebar from '@/components/layout/AppSidebar';
@@ -18,6 +18,21 @@ function ChatPageLayout() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQueryHandled = useRef(false);
+  const [currentSection, setCurrentSection] = useState<'chat' | 'math'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('currentSection');
+      if (saved === 'math' || saved === 'chat') return saved;
+    }
+    return 'chat';
+  });
+
+  const handleSectionChange = (section: string) => {
+    console.log('Section change requested:', section); // Debug log
+    setCurrentSection(section as 'chat' | 'math');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('currentSection', section);
+    }
+  };
 
   // Initialize auth on first render
   useEffect(() => {
@@ -50,11 +65,18 @@ function ChatPageLayout() {
   return (
     <SidebarProvider>
       <Sidebar>
-        <AppSidebar onClearChat={clearAllSessions} />
+        <AppSidebar 
+          onClearChat={clearAllSessions} 
+          onSectionChange={handleSectionChange}
+          currentSection={currentSection}
+        />
       </Sidebar>
       <SidebarInset>
         <Suspense fallback={<div>Loading chat interface...</div>}>
-          <ChatInterface />
+          <ChatInterface 
+            onSectionChange={handleSectionChange}
+            currentSection={currentSection}
+          />
         </Suspense>
       </SidebarInset>
     </SidebarProvider>

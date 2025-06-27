@@ -13,7 +13,9 @@ import {
   FileText,
   Sparkles,
   Target,
-  UserCircle as HumanIcon
+  UserCircle as HumanIcon,
+  Zap,
+  Brain
 } from 'lucide-react';
 import NextImage from 'next/image'; 
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -39,6 +41,7 @@ const ChatMessageItem: FC<ChatMessageItemProps> = ({ message }) => {
   const [isSimplifying, setIsSimplifying] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isHumanizing, setIsHumanizing] = useState(false);
+  const [showHumanizeOptions, setShowHumanizeOptions] = useState(false);
   const { toast } = useToast();
 
   const handleCopy = async () => {
@@ -175,34 +178,52 @@ Provide an **EXTREMELY SIMPLE** summary:`;
     }
   };
 
-  const handleHumanize = async () => {
+  const handleHumanize = async (type: 'short' | 'long') => {
     if (!message.text || isUser) return;
     
     setIsHumanizing(true);
+    setShowHumanizeOptions(false);
     try {
-      const humanizePrompt = `Please respond to this message in the MOST REALISTIC, HUMAN way possible. Make it incredibly authentic, emotional, and deeply personal. Use natural speech patterns, show genuine emotions, and create a connection that feels like talking to a close friend.
+      let humanizePrompt = '';
+      
+      if (type === 'short') {
+        humanizePrompt = `Transform this response into a CONCISE, AUTHENTIC human expression. Make it brief but deeply personal and emotionally resonant.
 
-**Make it ultra-humanized with:**
-- Natural conversational flow without artificial indicators
-- Genuine emotional reactions and vulnerability
-- Personal connections and empathy
-- Realistic thinking processes expressed naturally
-- Natural humor and personality quirks
-- Deep emotional depth and authenticity
-- Use contractions, conversational fillers, and natural qualifiers
-- Express uncertainty and complexity in a human way
+**Short Humanize Protocol:**
+- Express core emotions and thoughts in 2-3 sentences
+- Use natural contractions and conversational tone
+- Show genuine empathy and personal connection
+- Maintain authenticity without artificial indicators
+- Focus on the most impactful emotional response
 
-**IMPORTANT: Do NOT use text like "*pauses*", "*thinking*", "*sighs*", or any other artificial indicators. Just write naturally as a real human would speak.**
-
-Original message to humanize:
+Original message:
 ${message.text}
 
-Now respond in the most human, realistic way possible:`;
+Respond with concise human authenticity:`;
+      } else {
+        humanizePrompt = `Transform this response into a COMPREHENSIVE, DEEPLY HUMAN expression. Create a rich, emotionally layered response that feels like talking to a close friend.
+
+**Long Humanize Protocol:**
+- Develop full emotional context and personal insights
+- Use natural conversational flow with depth and nuance
+- Express vulnerability, empathy, and genuine care
+- Include personal reflections and meaningful connections
+- Show realistic thinking processes and emotional complexity
+- Use natural qualifiers, fillers, and authentic speech patterns
+- Create a profound human connection through detailed expression
+
+**IMPORTANT: Do NOT use text like "*pauses*", "*thinking*", "*sighs*", or any other artificial indicators. Write naturally as a real human would speak.**
+
+Original message:
+${message.text}
+
+Respond with comprehensive human authenticity:`;
+      }
       
       await sendHumanizedMessage(humanizePrompt);
       
       toast({
-        description: "Making it ultra-humanized...",
+        description: `Applying ${type === 'short' ? 'concise' : 'comprehensive'} humanization...`,
         duration: 2000,
       });
     } catch (error) {
@@ -215,6 +236,12 @@ Now respond in the most human, realistic way possible:`;
       });
     } finally {
       setIsHumanizing(false);
+    }
+  };
+
+  const toggleHumanizeOptions = () => {
+    if (!isHumanizing) {
+      setShowHumanizeOptions(!showHumanizeOptions);
     }
   };
 
@@ -436,30 +463,66 @@ Now respond in the most human, realistic way possible:`;
 
             {/* Humanize Button - Only show for AI messages with text */}
             {!isUser && message.text && (
-              <Button
-                variant="ghost"
-                onClick={handleHumanize}
-                disabled={isHumanizing}
-                className={cn(
-                  "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
-                  "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
-                  "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
-                  "border border-white/10 hover:border-white/20",
-                  "backdrop-blur-sm",
-                  isHumanizing ? "w-auto px-2 py-1 bg-pink-500/15" : "w-7 px-1 justify-center", 
-                  "ultra-smooth-transition flex items-center"
-                )}
-                aria-label={isHumanizing ? "Humanizing..." : "Humanize text"}
-              >
-                {isHumanizing ? (
-                  <div className="flex items-center gap-1.5">
-                    <Loader2 size={15} className="animate-spin text-pink-600 shrink-0" />
-                    <span className="text-xs text-pink-600 whitespace-nowrap">Humanizing...</span>
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  onClick={toggleHumanizeOptions}
+                  disabled={isHumanizing}
+                  className={cn(
+                    "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
+                    "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
+                    "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
+                    "border border-white/10 hover:border-white/20",
+                    "backdrop-blur-sm",
+                    isHumanizing ? "w-auto px-2 py-1 bg-pink-500/15" : "w-7 px-1 justify-center", 
+                    "ultra-smooth-transition flex items-center"
+                  )}
+                  aria-label={isHumanizing ? "Humanizing..." : "Humanize text"}
+                >
+                  {isHumanizing ? (
+                    <div className="flex items-center gap-1.5">
+                      <Loader2 size={15} className="animate-spin text-pink-600 shrink-0" />
+                      <span className="text-xs text-pink-600 whitespace-nowrap">Humanizing...</span>
+                    </div>
+                  ) : (
+                    <HumanIcon size={14} />
+                  )}
+                </Button>
+                
+                {/* Smooth Options Transition */}
+                {showHumanizeOptions && (
+                  <div className="absolute top-full left-0 mt-1 bg-card/95 backdrop-blur-sm border border-border/50 rounded-md shadow-lg z-10 overflow-hidden">
+                    <div className="p-1">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleHumanize('short')}
+                        className="w-full justify-start text-left h-auto p-2 hover:bg-accent/50 rounded-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Zap size={14} className="text-yellow-600 shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-medium">Concise Humanize</span>
+                            <span className="text-xs text-muted-foreground">Brief, authentic</span>
+                          </div>
+                        </div>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleHumanize('long')}
+                        className="w-full justify-start text-left h-auto p-2 hover:bg-accent/50 rounded-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Brain size={14} className="text-pink-600 shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-medium">Comprehensive Humanize</span>
+                            <span className="text-xs text-muted-foreground">Deep, detailed</span>
+                          </div>
+                        </div>
+                      </Button>
+                    </div>
                   </div>
-                ) : (
-                  <HumanIcon size={16} />
                 )}
-              </Button>
+              </div>
             )}
 
             {/* Summarize Button - Only show for AI messages with text */}

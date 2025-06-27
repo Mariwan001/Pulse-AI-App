@@ -1,20 +1,27 @@
 "use client";
 
-import { useRef, useEffect, type FC } from 'react';
+import { useRef, useEffect, type FC, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useChatStore, sendMessage } from '@/store/chat-store';
 import ChatHeader from './ChatHeader';
 import ChatMessageItem from './ChatMessageItem';
 import ChatInputBar from './ChatInputBar';
+import MathSection from '@/components/sections/MathSection';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2 } from 'lucide-react';
 
-const ChatInterface: FC = () => {
+interface ChatInterfaceProps {
+  onSectionChange?: (section: string) => void;
+  currentSection?: 'chat' | 'math';
+}
+
+const ChatInterface: FC<ChatInterfaceProps> = ({ onSectionChange, currentSection = 'chat' }) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const isStartingNewChatRef = useRef(false);
   const newChatKeyRef = useRef(0);
   const router = useRouter();
   const searchParams = useSearchParams();
+  
   const {
     messages,
     activeSessionId,
@@ -87,6 +94,14 @@ const ChatInterface: FC = () => {
     }, 10);
   };
 
+  const handleSectionChange = (section: string) => {
+    onSectionChange?.(section);
+  };
+
+  const handleBackToHome = () => {
+    onSectionChange?.('chat');
+  };
+
   if (!isInitialized) {
     return (
       <div className="flex flex-col h-full items-center justify-center bg-background">
@@ -98,29 +113,35 @@ const ChatInterface: FC = () => {
 
   return (
     <div key={newChatKeyRef.current} className="flex flex-col h-full bg-background">
-      <ChatHeader onNewChat={handleNewChat} />
-      <ScrollArea className="flex-grow p-4" ref={scrollAreaRef}>
-        <div className="space-y-4">
-          {messages.map((message, index) => (
-            <ChatMessageItem key={`${message.id}-${index}`} message={message} />
-          ))}
-          {isGenerating && (
-            <div className="flex items-center gap-2 mt-2">
-              <div className="flex items-center bg-muted/40 rounded-lg px-4 py-2">
-                <span className="mr-3 text-muted-foreground text-base font-light">AI is thinking</span>
-                <span className="dot-typing" style={{ fontSize: '1.5rem', letterSpacing: '0.3em', color: '#888' }}>
-                  <span className="dot">.</span><span className="dot">.</span><span className="dot">.</span>
-                </span>
-              </div>
+      {currentSection === 'chat' ? (
+        <>
+          <ChatHeader onNewChat={handleNewChat} />
+          <ScrollArea className="flex-grow p-4" ref={scrollAreaRef}>
+            <div className="space-y-4">
+              {messages.map((message, index) => (
+                <ChatMessageItem key={`${message.id}-${index}`} message={message} />
+              ))}
+              {isGenerating && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center bg-muted/40 rounded-lg px-4 py-2">
+                    <span className="mr-3 text-muted-foreground text-base font-light">AI is thinking</span>
+                    <span className="dot-typing" style={{ fontSize: '1.5rem', letterSpacing: '0.3em', color: '#888' }}>
+                      <span className="dot">.</span><span className="dot">.</span><span className="dot">.</span>
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </ScrollArea>
-      
-      <ChatInputBar 
-        onSendMessage={handleSendMessage} 
-        isGenerating={isGenerating} 
-      />
+          </ScrollArea>
+          
+          <ChatInputBar 
+            onSendMessage={handleSendMessage} 
+            isGenerating={isGenerating} 
+          />
+        </>
+      ) : (
+        <MathSection onBackToHome={handleBackToHome} />
+      )}
     </div>
   );
 };

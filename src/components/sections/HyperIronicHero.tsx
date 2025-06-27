@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { motion, useScroll, useTransform, MotionValue } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui/button';
-import AnimatedPlaceholderInput from "@/components/ui/animated-placeholder-input";
+import ReactTextareaAutosize from 'react-textarea-autosize';
 import { Rocket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { UserPreferences } from "@/lib/types";
@@ -495,7 +495,7 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
   const [isTypingPlaceholder, setIsTypingPlaceholder] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
   const [showStaticPlaceholder, setShowStaticPlaceholder] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
 
   // Personalized suggestions based on user preferences
@@ -740,13 +740,13 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
             className="w-full max-w-2xl mb-16"
           >
             <div className="relative flex items-center w-full">
-              <AnimatedPlaceholderInput
-                ref={inputRef}
-                type="text"
-                className="w-full text-base md:text-lg lg:text-xl relative z-[1] flex-grow bg-transparent text-white border-zinc-600 focus:border-white ultra-smooth glass-morphism !ring-0 !ring-offset-0"
+              <ReactTextareaAutosize
+                minRows={1}
+                maxRows={6}
+                ref={inputRef as any}
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Ask Pulse AI anything..."
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(e.target.value)}
+                placeholder={displayedPlaceholder || "Ask Pulse AI anything..."}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 onKeyDown={(e) => {
@@ -754,6 +754,8 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
                     handleSend();
                   }
                 }}
+                className="w-full text-base md:text-lg lg:text-xl relative z-[1] flex-grow bg-transparent text-white border-zinc-600 focus:border-white ultra-smooth glass-morphism !ring-0 !ring-offset-0 resize-none transition-all duration-300 placeholder:text-zinc-400"
+                style={{ minHeight: 48, maxHeight: 180, lineHeight: 1.5 }}
               />
               {inputValue.trim() && (
                 <motion.div
