@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Calculator, Home, Loader2, Upload, XCircle, Send, User, Bot, Sparkles, Heart, Zap, Brain, ChevronDown, FileText, UserCircle as HumanIcon, Lightbulb, Target, Trash, History } from 'lucide-react';
+import { Calculator, Home, Loader2, Upload, Send, User, Bot, Sparkles, Zap, Brain,  FileText, UserCircle as HumanIcon, Lightbulb, Target, Trash, History, ClipboardCopy, ClipboardCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -15,6 +14,7 @@ import { sendMessage, sendHumanizedMessage } from '@/store/chat-store';
 import MathRenderer from '@/components/ui/MathRenderer';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import ReactTextareaAutosize from 'react-textarea-autosize';
+import { Menu, Transition } from '@headlessui/react';
 
 interface MathMessage {
   id: string;
@@ -44,6 +44,7 @@ const MathSection: React.FC<MathSectionProps> = ({ onBackToHome }) => {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isHumanizing, setIsHumanizing] = useState(false);
   const [showHumanizeOptions, setShowHumanizeOptions] = useState(false);
+  const [isCopied, setIsCopied] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -91,21 +92,26 @@ const MathSection: React.FC<MathSectionProps> = ({ onBackToHome }) => {
         const summary = loadedMessages.find(m => m.role === 'user')?.content?.slice(0, 40) || 'Math Conversation';
         const all = localStorage.getItem('mathAllHistory');
         let allHistoryArr = all ? JSON.parse(all) : [];
-        allHistoryArr = [
-          { id: Date.now().toString(), messages: loadedMessages, timestamp: Date.now(), summary },
-          ...allHistoryArr
-        ];
-        localStorage.setItem('mathAllHistory', JSON.stringify(allHistoryArr));
+        // Only add to history if not already present (avoid duplicates on repeated refreshes)
+        const isDuplicate = allHistoryArr.length > 0 && JSON.stringify(allHistoryArr[0].messages) === JSON.stringify(loadedMessages);
+        if (!isDuplicate) {
+          allHistoryArr = [
+            { id: Date.now().toString(), messages: loadedMessages, timestamp: Date.now(), summary },
+            ...allHistoryArr
+          ];
+          localStorage.setItem('mathAllHistory', JSON.stringify(allHistoryArr));
+        }
         localStorage.removeItem('mathMessages');
         setMathMessages([]);
         setAllHistory(allHistoryArr);
-        setShowGreeting(true);
+        setShowGreeting(true); // Show greeting for new clean page
       }
-    }
-    // Load all history
-    const all = localStorage.getItem('mathAllHistory');
-    if (all) {
-      setAllHistory(JSON.parse(all));
+    } else {
+      // Load all history
+      const all = localStorage.getItem('mathAllHistory');
+      if (all) {
+        setAllHistory(JSON.parse(all));
+      }
     }
   }, []);
 
@@ -323,59 +329,56 @@ const MathSection: React.FC<MathSectionProps> = ({ onBackToHome }) => {
     setIsSummarizing(true);
     try {
       let summarizePrompt = '';
-      
       if (type === 'accurate') {
-        summarizePrompt = `Please provide an **EXTREMELY, EXTREMELY, DEEPLY, TOTALLY, SYSTEMATICALLY, TOO POWERFULLY ACCURATE** summary of this text. You must be **WISELY, SMARTLY, WITHOUT FORGETTING, MIXING THINGS UP, BE TOO SPECIFIC, EXTREMELY BE UNMISTAKENLY, NO WAY TO MAKE MISTAKES, AND IMPOSSIBLE TO MAKE MISTAKES**.
-
-**ACCURATE SUMMARY REQUIREMENTS:**
-- **PERFECT ACCURACY**: Every fact, detail, and point must be **100% ACCURATE**
-- **COMPLETE COMPREHENSION**: Understand **EVERY SINGLE DETAIL** without forgetting anything
-- **ZERO MIXING UP**: **NEVER MIX THINGS UP** or confuse different parts
-- **EXTREME SPECIFICITY**: Be **TOO SPECIFIC** - no generalities, only precise details
-- **UNMISTAKABLE PRECISION**: **NO WAY TO MAKE MISTAKES** in your summary
-- **IMPOSSIBLE TO BE WRONG**: Your summary must be **IMPOSSIBLE TO MAKE MISTAKES**
-- **COMPLETE COVERAGE**: Include **ALL IMPORTANT POINTS** with perfect accuracy
-- **LOGICAL FLOW**: Maintain perfect logical structure and flow
-- **SOURCE FIDELITY**: Stay **100% FAITHFUL** to the original content
-
-Original text to summarize with EXTREME ACCURACY:
-${message.content}
-
-Provide an **EXTREMELY ACCURATE** summary:`;
+        summarizePrompt = `Please provide an **EXTREMELY, EXTREMELY, DEEPLY, TOTALLY, SYSTEMATICALLY, TOO POWERFULLY ACCURATE** summary of this text. You must be **WISELY, SMARTLY, WITHOUT FORGETTING, MIXING THINGS UP, BE TOO SPECIFIC, EXTREMELY BE UNMISTAKENLY, NO WAY TO MAKE MISTAKES, AND IMPOSSIBLE TO MAKE MISTAKES**.\n\n**ACCURATE SUMMARY REQUIREMENTS:**\n- **PERFECT ACCURACY**: Every fact, detail, and point must be **100% ACCURATE**\n- **COMPLETE COMPREHENSION**: Understand **EVERY SINGLE DETAIL** without forgetting anything\n- **ZERO MIXING UP**: **NEVER MIX THINGS UP** or confuse different parts\n- **EXTREME SPECIFICITY**: Be **TOO SPECIFIC** - no generalities, only precise details\n- **UNMISTAKABLE PRECISION**: **NO WAY TO MAKE MISTAKES** in your summary\n- **IMPOSSIBLE TO BE WRONG**: Your summary must be **IMPOSSIBLE TO MAKE MISTAKES**\n- **COMPLETE COVERAGE**: Include **ALL IMPORTANT POINTS** with perfect accuracy\n- **LOGICAL FLOW**: Maintain perfect logical structure and flow\n- **SOURCE FIDELITY**: Stay **100% FAITHFUL** to the original content\n\nOriginal text to summarize with EXTREME ACCURACY:\n${message.content}\n\nProvide an **EXTREMELY ACCURATE** summary:`;
       } else {
-        summarizePrompt = `Please provide an **EXTREMELY, EXTREMELY, DEEPLY, TOTALLY, SYSTEMATICALLY, TOO POWERFULLY SIMPLE** summary of this text. Use the **SIMPLEST TERMS, SIMPLEST WORDS AND EXPLAINING, WISELY, SMARTLY, WITHOUT FORGETTING, MIXING THINGS UP, BE TOO SPECIFIC, EXTREMELY BE UNMISTAKENLY, NO WAY TO MAKE MISTAKES, AND IMPOSSIBLE TO MAKE MISTAKES**.
-
-**SIMPLE SUMMARY REQUIREMENTS:**
-- **ULTRA SIMPLE LANGUAGE**: Use the **SIMPLEST WORDS POSSIBLE** that anyone can understand
-- **BASIC EXPLANATIONS**: Explain everything in the **MOST BASIC TERMS**
-- **EVERYDAY LANGUAGE**: Use only **EVERYDAY, COMMON WORDS**
-- **NO TECHNICAL TERMS**: Replace ALL complex terms with **SIMPLE ALTERNATIVES**
-- **SHORT SENTENCES**: Use **VERY SHORT, CLEAR SENTENCES**
-- **STEP-BY-STEP**: Break everything into **TINY, EASY PIECES**
-- **CONVERSATIONAL TONE**: Make it sound like **TALKING TO A FRIEND**
-- **ZERO JARGON**: **NO COMPLEX LANGUAGE** whatsoever
-- **PERFECT CLARITY**: Make it **IMPOSSIBLE TO MISUNDERSTAND**
-
-Original text to summarize in **ULTRA SIMPLE TERMS**:
-${message.content}
-
-Provide an **EXTREMELY SIMPLE** summary:`;
+        summarizePrompt = `Please provide an **EXTREMELY, EXTREMELY, DEEPLY, TOTALLY, SYSTEMATICALLY, TOO POWERFULLY SIMPLE** summary of this text. Use the **SIMPLEST TERMS, SIMPLEST WORDS AND EXPLAINING, WISELY, SMARTLY, WITHOUT FORGETTING, MIXING THINGS UP, BE TOO SPECIFIC, EXTREMELY BE UNMISTAKENLY, NO WAY TO MAKE MISTAKES, AND IMPOSSIBLE TO MAKE MISTAKES**.\n\n**SIMPLE SUMMARY REQUIREMENTS:**\n- **ULTRA SIMPLE LANGUAGE**: Use the **SIMPLEST WORDS POSSIBLE** that anyone can understand\n- **BASIC EXPLANATIONS**: Explain everything in the **MOST BASIC TERMS**\n- **EVERYDAY LANGUAGE**: Use only **EVERYDAY, COMMON WORDS**\n- **NO TECHNICAL TERMS**: Replace ALL complex terms with **SIMPLE ALTERNATIVES**\n- **SHORT SENTENCES**: Use **VERY SHORT, CLEAR SENTENCES**\n- **STEP-BY-STEP**: Break everything into **TINY, EASY PIECES**\n- **CONVERSATIONAL TONE**: Make it sound like **TALKING TO A FRIEND**\n- **ZERO JARGON**: **NO COMPLEX LANGUAGE** whatsoever\n- **PERFECT CLARITY**: Make it **IMPOSSIBLE TO MISUNDERSTAND**\n\nOriginal text to summarize in **ULTRA SIMPLE TERMS**:\n${message.content}\n\nProvide an **EXTREMELY SIMPLE** summary:`;
       }
-      
-      await sendMessage(summarizePrompt);
-      
-      toast({
-        description: type === 'accurate' ? "Creating extremely accurate summary..." : "Creating ultra simple summary...",
-        duration: 2000,
+      // Add user message
+      const userMsg: MathMessage = {
+        id: Date.now().toString() + Math.random(),
+        role: 'user' as 'user',
+        content: summarizePrompt,
+        timestamp: new Date(),
+      };
+      setMathMessages(prev => [...prev, userMsg]);
+      // Add assistant placeholder
+      const aiMsgId = Date.now().toString() + Math.random();
+      const aiMsg: MathMessage = {
+        id: aiMsgId,
+        role: 'assistant' as 'assistant',
+        content: '',
+        timestamp: new Date(),
+      };
+      setMathMessages(prev => [...prev, aiMsg]);
+      // Stream response
+      const response = await fetch('/api/ai/math-solver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: summarizePrompt }),
       });
+      if (!response.ok || !response.body) throw new Error('No response');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.type === 'text') {
+              fullResponse += parsed.content;
+              setMathMessages(prev => prev.map(msg => msg.id === aiMsgId ? { ...msg, content: fullResponse } : msg));
+            }
+          } catch {}
+        }
+      }
+      toast({ description: 'Summary completed!', duration: 2000 });
     } catch (error) {
-      console.error('Error summarizing text:', error);
-      toast({
-        title: "Error",
-        description: "Failed to summarize text.",
-        variant: "destructive",
-        duration: 3000,
-      });
+      toast({ title: 'Error', description: 'Failed to summarize text.', variant: 'destructive', duration: 3000 });
     } finally {
       setIsSummarizing(false);
     }
@@ -384,60 +387,60 @@ Provide an **EXTREMELY SIMPLE** summary:`;
   const handleHumanize = async (messageId: string, type: 'concise' | 'comprehensive') => {
     const message = mathMessages.find(msg => msg.id === messageId);
     if (!message || message.role !== 'assistant') return;
-
     setIsHumanizing(true);
     setShowHumanizeOptions(false);
     try {
       let humanizePrompt = '';
-      
       if (type === 'concise') {
-        humanizePrompt = `Transform this response into a CONCISE, AUTHENTIC human expression. Make it brief but deeply personal and emotionally resonant.
-
-**Short Humanize Protocol:**
-- Express core emotions and thoughts in 2-3 sentences
-- Use natural contractions and conversational tone
-- Show genuine empathy and personal connection
-- Maintain authenticity without artificial indicators
-- Focus on the most impactful emotional response
-
-Original message:
-${message.content}
-
-Respond with concise human authenticity:`;
+        humanizePrompt = `Transform this response into a CONCISE, AUTHENTIC human expression. Make it brief but deeply personal and emotionally resonant.\n\n**Short Humanize Protocol:**\n- Express core emotions and thoughts in 2-3 sentences\n- Use natural contractions and conversational tone\n- Show genuine empathy and personal connection\n- Maintain authenticity without artificial indicators\n- Focus on the most impactful emotional response\n\nOriginal message:\n${message.content}\n\nRespond with concise human authenticity:`;
       } else {
-        humanizePrompt = `Transform this response into a COMPREHENSIVE, DEEPLY HUMAN expression. Create a rich, emotionally layered response that feels like talking to a close friend.
-
-**Long Humanize Protocol:**
-- Develop full emotional context and personal insights
-- Use natural conversational flow with depth and nuance
-- Express vulnerability, empathy, and genuine care
-- Include personal reflections and meaningful connections
-- Show realistic thinking processes and emotional complexity
-- Use natural qualifiers, fillers, and authentic speech patterns
-- Create a profound human connection through detailed expression
-
-**IMPORTANT: Do NOT use text like "*pauses*", "*thinking*", "*sighs*", or any other artificial indicators. Write naturally as a real human would speak.**
-
-Original message:
-${message.content}
-
-Respond with comprehensive human authenticity:`;
+        humanizePrompt = `Transform this response into a COMPREHENSIVE, DEEPLY HUMAN expression. Create a rich, emotionally layered response that feels like talking to a close friend.\n\n**Long Humanize Protocol:**\n- Develop full emotional context and personal insights\n- Use natural conversational flow with depth and nuance\n- Express vulnerability, empathy, and genuine care\n- Include personal reflections and meaningful connections\n- Show realistic thinking processes and emotional complexity\n- Use natural qualifiers, fillers, and authentic speech patterns\n- Create a profound human connection through detailed expression\n\n**IMPORTANT: Do NOT use text like "*pauses*", "*thinking*", "*sighs*", or any other artificial indicators. Write naturally as a real human would speak.**\n\nOriginal message:\n${message.content}\n\nRespond with comprehensive human authenticity:`;
       }
-      
-      await sendHumanizedMessage(humanizePrompt);
-      
-      toast({
-        description: `Applying ${type === 'concise' ? 'concise' : 'comprehensive'} humanization...`,
-        duration: 2000,
+      // Add user message
+      const userMsg: MathMessage = {
+        id: Date.now().toString() + Math.random(),
+        role: 'user' as 'user',
+        content: humanizePrompt,
+        timestamp: new Date(),
+      };
+      setMathMessages(prev => [...prev, userMsg]);
+      // Add assistant placeholder
+      const aiMsgId = Date.now().toString() + Math.random();
+      const aiMsg: MathMessage = {
+        id: aiMsgId,
+        role: 'assistant' as 'assistant',
+        content: '',
+        timestamp: new Date(),
+      };
+      setMathMessages(prev => [...prev, aiMsg]);
+      // Stream response
+      const response = await fetch('/api/ai/math-solver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: humanizePrompt }),
       });
+      if (!response.ok || !response.body) throw new Error('No response');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.type === 'text') {
+              fullResponse += parsed.content;
+              setMathMessages(prev => prev.map(msg => msg.id === aiMsgId ? { ...msg, content: fullResponse } : msg));
+            }
+          } catch {}
+        }
+      }
+      toast({ description: 'Humanization completed!', duration: 2000 });
     } catch (error) {
-      console.error('Error humanizing text:', error);
-      toast({
-        title: "Error",
-        description: "Failed to humanize text.",
-        variant: "destructive",
-        duration: 3000,
-      });
+      toast({ title: 'Error', description: 'Failed to humanize text.', variant: 'destructive', duration: 3000 });
     } finally {
       setIsHumanizing(false);
     }
@@ -538,11 +541,17 @@ Now explain this in ultra simple terms:`;
     setTimeout(() => setHistoryDialogVisible(false), 400);
   };
 
+  const handleDeleteHistory = (id: string) => {
+    const updatedHistory = allHistory.filter(h => h.id !== id);
+    setAllHistory(updatedHistory);
+    localStorage.setItem('mathAllHistory', JSON.stringify(updatedHistory));
+  };
+
   return (
     <>
       <div
         className={
-          `fixed inset-0 z-[1000] flex flex-col h-screen w-screen bg-background transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          `fixed inset-0 z-[1000] flex flex-col h-screen w-screen bg-background transition-all duration-500 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb; ${
             showOverlay ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
           }`
         }
@@ -556,17 +565,51 @@ Now explain this in ultra simple terms:`;
             </div>
             <div>
               <h1 className="text-xl font-semibold text-foreground">Math Solver</h1>
-              <p className="text-sm text-muted-foreground">Ultra-precision mathematical solutions</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            onClick={handleSmoothExit}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground border border-border/60 hover:border-orange-400/80 rounded-lg px-3 py-1.5 transition-all duration-200 shadow-none focus:outline-none focus:ring-1 focus:ring-orange-300 hover:bg-black/90"
-          >
-            <Home className="w-4 h-4" />
-            <span>Home</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="New Chat"
+              className={
+                "h-8 w-8 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground " +
+                "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)] " +
+                "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)] " +
+                "border border-border/30 hover:border-border/60 ultra-smooth-transition"
+              }
+              onClick={() => {
+                // Move current chat to history if not empty
+                if (mathMessages.length > 0) {
+                  const summary = mathMessages.find(m => m.role === 'user')?.content?.slice(0, 40) || 'Math Conversation';
+                  const all = localStorage.getItem('mathAllHistory');
+                  let allHistoryArr = all ? JSON.parse(all) : [];
+                  const isDuplicate = allHistoryArr.length > 0 && JSON.stringify(allHistoryArr[0].messages) === JSON.stringify(mathMessages);
+                  if (!isDuplicate) {
+                    allHistoryArr = [
+                      { id: Date.now().toString(), messages: mathMessages, timestamp: Date.now(), summary },
+                      ...allHistoryArr
+                    ];
+                    localStorage.setItem('mathAllHistory', JSON.stringify(allHistoryArr));
+                  }
+                  localStorage.removeItem('mathMessages');
+                  setAllHistory(allHistoryArr);
+                }
+                setMathMessages([]);
+                setShowGreeting(true);
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 2v4m8-4v4m-9 4h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zm2 4h4" /></svg>
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleSmoothExit}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground border border-border/60 hover:border-orange-400/80 rounded-lg px-3 py-1.5 transition-all duration-200 shadow-none focus:outline-none focus:ring-1 focus:ring-orange-300 hover:bg-black/90"
+            >
+              <Home className="w-4 h-4" />
+              <span>Home</span>
+            </Button>
+          </div>
         </div>
 
         {/* Main Content - Messages Area */}
@@ -587,49 +630,91 @@ Now explain this in ultra simple terms:`;
                 "flex gap-3",
                 message.role === 'user' ? 'justify-end' : 'justify-start'
               )}>
-                {message.role === 'assistant' && (
+                {message.role === 'assistant' && message.content.trim() && (
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                     <Bot className="w-4 h-4 text-orange-500" />
                   </div>
                 )}
-                
                 <div className="group">
-                  <div
-                    className={`max-w-[80%] rounded-lg p-4 ${
-                      message.role === 'user'
-                        ? 'bg-orange-500/10 border border-orange-500/20 text-foreground'
-                        : 'bg-card border border-border/50 text-foreground'
-                    }`}
-                  >
-                    {/* Image if present */}
-                    {message.image && (
-                      <div className="mb-3">
-                        <Image 
-                          src={message.image} 
-                          alt="Math problem" 
-                          width={300} 
-                          height={200} 
-                          className="rounded-md object-contain max-h-32" 
-                        />
-                      </div>
-                    )}
-                    
-                    {/* Message content */}
-                    {message.role === 'assistant' ? (
-                      <MathRenderer content={message.content.replace(/\*\*|\*/g, '')} />
-                    ) : (
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                        {message.content.replace(/\*\*|\*/g, '')}
-                      </div>
-                    )}
-                  </div>
-
+                  {/* Only render AI message if it has content */}
+                  {(message.role === 'assistant' ? message.content.trim() : true) && (
+                    <div
+                      className={cn(
+                        // Use inline-flex and fit-content for user messages
+                        message.role === 'user'
+                          ? 'inline-flex items-center bg-blue-500/10 border border-blue-500/20 text-foreground rounded-lg px-4 py-2 max-w-fit min-w-0 break-words'
+                          : 'bg-card border border-border/50 text-foreground rounded-lg p-4 max-w-[80%] min-w-0 break-words'
+                      )}
+                      style={message.role === 'user' ? { alignSelf: 'flex-end' } : {}}
+                    >
+                      {/* Image if present */}
+                      {message.image && (
+                        <div className="mb-3">
+                          <Image 
+                            src={message.image} 
+                            alt="Math problem" 
+                            width={300} 
+                            height={200} 
+                            className="rounded-md object-contain max-h-32" 
+                          />
+                        </div>
+                      )}
+                      {/* Message content */}
+                      {message.role === 'assistant' ? (
+                        <MathRenderer content={message.content.replace(/\*\*|\*/g, '')} />
+                      ) : (
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                          {message.content.replace(/\*\*|\*/g, '')}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {/* Action buttons for AI messages */}
                   {message.role === 'assistant' && !message.content.startsWith('📝') && !message.content.startsWith('💝') && !message.content.startsWith('✨') && (
                     <div className={cn(
                       "flex items-center mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 gap-1",
                       "justify-start"
                     )}>
+                      {/* Copy Button */}
+                      <Button
+                        variant="ghost"
+                        onClick={async () => {
+                          if (!message.content) return;
+                          try {
+                            await navigator.clipboard.writeText(message.content.trim());
+                            setIsCopied(message.id);
+                            toast({
+                              description: "Content copied!",
+                              duration: 2000,
+                            });
+                            setTimeout(() => setIsCopied(null), 2000);
+                          } catch (err) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to copy content.",
+                              variant: "destructive",
+                              duration: 3000,
+                            });
+                            setIsCopied(null);
+                          }
+                        }}
+                        className={cn(
+                          "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3] shadow-[0_1px_2px_hsl(var(--foreground)_/_0.07)] hover:shadow-[0_1px_3px_hsl(var(--foreground)_/_0.1)]",
+                          isCopied === message.id ? "w-auto px-2 py-1 bg-green-500/15" : "w-7 px-1 justify-center",
+                          "ultra-smooth-transition flex items-center"
+                        )}
+                        aria-label={isCopied === message.id ? "Copied" : "Copy message"}
+                        disabled={!message.content}
+                      >
+                        {isCopied === message.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <ClipboardCheck size={15} className="text-green-600 shrink-0" />
+                            <span className="text-xs text-green-600 whitespace-nowrap">Copied!</span>
+                          </div>
+                        ) : (
+                          <ClipboardCopy size={16} />
+                        )}
+                      </Button>
                       {/* Summarize Button */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -710,7 +795,7 @@ Now explain this in ultra simple terms:`;
                         
                         {/* Smooth Options Transition */}
                         {showHumanizeOptions && (
-                          <div className="absolute top-full left-0 mt-1 bg-card/95 backdrop-blur-sm border border-border/50 rounded-md shadow-lg z-10 overflow-hidden">
+                          <div className="absolute left-0 bottom-full w-32 rounded-md shadow-lg bg-background ring-1 ring-black ring-opacity-5 focus:outline-none z-50 transition-all duration-300 ease-in-out transform opacity-0 scale-95 data-[headlessui-state=open]:opacity-100 data-[headlessui-state=open]:scale-100">
                             <div className="p-1">
                               <Button
                                 variant="ghost"
@@ -802,73 +887,151 @@ Now explain this in ultra simple terms:`;
         {/* Bottom Input Section */}
         <div className="border-t border-border/50 p-4 bg-card/30 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto">
-            <div className="flex items-center gap-3">
-              {/* Clear Chat Button */}
-              <Button
-                variant="outline"
-                size="icon"
-                title="Clear chat"
-                onClick={() => { console.log('Open clear dialog'); setShowClearDialog(true); }}
-                className="h-10 w-10 rounded-lg border-border/50 hover:border-red-500/50 hover:bg-red-500/10 group"
-              >
-                <Trash className="h-5 w-5 text-red-500 group-hover:text-white transition-colors duration-150" />
-              </Button>
-              {/* Chat History Button */}
-              <Button
-                variant="outline"
-                size="icon"
-                title="Chat history"
-                onClick={() => { console.log('Open history dialog'); setShowHistory(true); }}
-                className="h-10 w-10 rounded-lg border-border/50 hover:border-blue-500/50 hover:bg-blue-500/10 group"
-              >
-                <History className="h-5 w-5 text-blue-500 group-hover:text-white transition-colors duration-150" />
-              </Button>
-              {/* Image Upload Button */}
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSolving || isImageUploading}
-                className="h-10 w-10 rounded-lg border-border/50 hover:border-orange-500/50 hover:bg-orange-500/10"
-                title="Upload math/physics problem image"
-              >
-                {isImageUploading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Upload className="h-5 w-5" />
-                )}
-              </Button>
-
-              {/* Text Input */}
-              <ReactTextareaAutosize
-                minRows={1}
-                maxRows={6}
-                placeholder="Type your mathematical problem..."
-                value={mathProblem}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMathProblem(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="flex-1 h-10 rounded-lg border border-border/50 focus:border-orange-500/50 px-3 py-2 resize-none transition-all duration-300 bg-background text-base leading-relaxed placeholder:text-muted-foreground overflow-hidden"
-                disabled={isSolving || isImageUploading}
-              />
-
-              {/* Send Button */}
-              <Button
-                onClick={handleMathSolve}
-                disabled={isSolving || (!mathProblem.trim() && !selectedImagePreview)}
-                className="h-10 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white"
-              >
-                {isSolving ? (
-                  <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+              {/* Input + Tools + Solve row for mobile */}
+              <div className="flex flex-row sm:hidden items-center gap-2 w-full">
+                <ReactTextareaAutosize
+                  minRows={1}
+                  maxRows={6}
+                  placeholder="Type your mathematical problem..."
+                  value={mathProblem}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMathProblem(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="flex-1 h-9 rounded-md border border-border/50 focus:border-orange-500/50 px-2 py-1 resize-none transition-all duration-300 bg-background text-[16px] leading-relaxed placeholder:text-muted-foreground overflow-hidden"
+                  disabled={isSolving || isImageUploading}
+                />
+                <Menu as="div" className="relative">
+                  <Menu.Button as={Button} className="h-9 w-9 min-w-0 rounded-md border-2 border-orange-500 bg-background/80 text-xs font-medium p-0 flex items-center justify-center shadow-sm">
+                    Tools
+                  </Menu.Button>
+                  <Transition
+                    as={React.Fragment}
+                    enter="transition duration-200 ease-out"
+                    enterFrom="transform opacity-0 scale-95"
+                    enterTo="transform opacity-100 scale-100"
+                    leave="transition duration-150 ease-in"
+                    leaveFrom="transform opacity-100 scale-100"
+                    leaveTo="transform opacity-0 scale-95"
+                  >
+                    <Menu.Items className="absolute left-0 bottom-full w-32 rounded-md shadow-lg bg-background ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                      <Menu.Item>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          title="Clear chat"
+                          onClick={() => { setShowClearDialog(true); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 border-none bg-transparent hover:bg-red-500/10 text-red-500 justify-start"
+                        >
+                          <Trash className="h-5 w-5" />
+                          <span>Clear</span>
+                        </Button>
+                      </Menu.Item>
+                      <Menu.Item>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          title="Chat history"
+                          onClick={() => { setShowHistory(true); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 border-none bg-transparent hover:bg-blue-500/10 text-blue-500 justify-start"
+                        >
+                          <History className="h-5 w-5" />
+                          <span>History</span>
+                        </Button>
+                      </Menu.Item>
+                      <Menu.Item>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isSolving || isImageUploading}
+                          className="w-full flex items-center gap-2 px-3 py-2 border-none bg-transparent hover:bg-orange-500/10 text-orange-500 justify-start"
+                          title="Upload math/physics problem image"
+                        >
+                          {isImageUploading ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Upload className="h-5 w-5" />
+                          )}
+                          <span>Image</span>
+                        </Button>
+                      </Menu.Item>
+                    </Menu.Items>
+                  </Transition>
+                </Menu>
+                <Button
+                  onClick={handleMathSolve}
+                  disabled={isSolving || (!mathProblem.trim() && !selectedImagePreview)}
+                  className="h-9 w-9 min-w-0 rounded-md bg-orange-500 hover:bg-orange-600 text-white p-0 flex items-center justify-center"
+                >
+                  {isSolving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Solving...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
+                  ) : (
                     <Send className="h-4 w-4" />
-                    <span>Solve</span>
-                  </div>
-                )}
-              </Button>
+                  )}
+                </Button>
+              </div>
+              {/* Individual Buttons for Desktop */}
+              <div className="hidden sm:flex items-center gap-3 w-full">
+                <ReactTextareaAutosize
+                  minRows={1}
+                  maxRows={6}
+                  placeholder="Type your mathematical problem..."
+                  value={mathProblem}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMathProblem(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="flex-1 h-10 rounded-lg border border-border/50 focus:border-orange-500/50 px-3 py-2 resize-none transition-all duration-300 bg-background text-base leading-relaxed placeholder:text-muted-foreground overflow-hidden"
+                  disabled={isSolving || isImageUploading}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  title="Clear chat"
+                  onClick={() => { setShowClearDialog(true); }}
+                  className="h-10 w-10 rounded-lg border-border/50 hover:border-red-500/50 hover:bg-red-500/10 group"
+                >
+                  <Trash className="h-5 w-5 text-red-500 group-hover:text-white transition-colors duration-150" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  title="Chat history"
+                  onClick={() => { setShowHistory(true); }}
+                  className="h-10 w-10 rounded-lg border-border/50 hover:border-blue-500/50 hover:bg-blue-500/10 group"
+                >
+                  <History className="h-5 w-5 text-blue-500 group-hover:text-white transition-colors duration-150" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSolving || isImageUploading}
+                  className="h-10 w-10 rounded-lg border-border/50 hover:border-orange-500/50 hover:bg-orange-500/10"
+                  title="Upload math/physics problem image"
+                >
+                  {isImageUploading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Upload className="h-5 w-5" />
+                  )}
+                </Button>
+                <Button
+                  onClick={handleMathSolve}
+                  disabled={isSolving || (!mathProblem.trim() && !selectedImagePreview)}
+                  className="h-10 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  {isSolving ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Solving...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Send className="h-4 w-4" />
+                      <span>Solve</span>
+                    </div>
+                  )}
+                </Button>
+              </div>
             </div>
 
             {/* Hidden File Input */}
@@ -895,9 +1058,20 @@ Now explain this in ultra simple terms:`;
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {allHistory.length === 0 && <div className="text-muted-foreground text-sm">No chat history yet.</div>}
               {allHistory.map(h => (
-                <div key={h.id} className="p-2 border rounded hover:bg-accent/30 cursor-pointer" onClick={() => handleRestoreHistory(h.id)}>
-                  <div className="font-medium text-sm">{h.summary}</div>
-                  <div className="text-xs text-muted-foreground">{new Date(h.timestamp).toLocaleString()}</div>
+                <div key={h.id} className="p-2 border rounded flex items-center justify-between hover:bg-accent/30">
+                  <div className="flex-1 cursor-pointer" onClick={() => handleRestoreHistory(h.id)}>
+                    <div className="font-medium text-sm">{h.summary}</div>
+                    <div className="text-xs text-muted-foreground">{new Date(h.timestamp).toLocaleString()}</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Delete"
+                    className="ml-2 text-red-500 hover:bg-red-500/10"
+                    onClick={() => handleDeleteHistory(h.id)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -973,9 +1147,20 @@ Now explain this in ultra simple terms:`;
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {allHistory.length === 0 && <div className="text-muted-foreground text-sm">No chat history yet.</div>}
                 {allHistory.map(h => (
-                  <div key={h.id} className="p-2 border rounded hover:bg-accent/30 cursor-pointer" onClick={() => { handleRestoreHistory(h.id); handleCloseHistoryDialog(); }}>
-                    <div className="font-medium text-sm">{h.summary}</div>
-                    <div className="text-xs text-muted-foreground">{new Date(h.timestamp).toLocaleString()}</div>
+                  <div key={h.id} className="p-2 border rounded flex items-center justify-between hover:bg-accent/30">
+                    <div className="flex-1 cursor-pointer" onClick={() => { handleRestoreHistory(h.id); handleCloseHistoryDialog(); }}>
+                      <div className="font-medium text-sm">{h.summary}</div>
+                      <div className="text-xs text-muted-foreground">{new Date(h.timestamp).toLocaleString()}</div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Delete"
+                      className="ml-2 text-red-500 hover:bg-red-500/10"
+                      onClick={() => handleDeleteHistory(h.id)}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </Button>
                   </div>
                 ))}
               </div>

@@ -16,6 +16,8 @@ const MathRenderer: React.FC<MathRendererProps> = ({ content }) => {
           return (
             <span
               key={i}
+              className="block max-w-full overflow-x-auto"
+              style={{ display: 'block', width: '100%' }}
               dangerouslySetInnerHTML={{
                 __html: katex.renderToString(latex, { displayMode: true }),
               }}
@@ -29,7 +31,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({ content }) => {
     });
   };
 
-  return <div>{renderContent()}</div>;
+  return <div className="overflow-x-auto w-full break-words">{renderContent()}</div>;
 };
 
 export default MathRenderer; 

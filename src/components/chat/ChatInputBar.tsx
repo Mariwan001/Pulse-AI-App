@@ -211,7 +211,7 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
       )}
       <form
         onSubmit={handleSubmit}
-        className="flex items-center gap-2"
+        className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full"
       >
         <ReactTextareaAutosize
           minRows={1}
@@ -220,7 +220,7 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
           value={inputValue}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleSubmit(e as any); } }}
-          className="flex-1 h-10 rounded-lg border border-border/50 focus:border-orange-500/50 px-3 py-2 resize-none transition-all duration-300 bg-background text-base leading-relaxed placeholder:text-muted-foreground overflow-hidden"
+          className="flex-1 h-10 rounded-lg border border-border/50 focus:border-orange-500/50 px-3 py-2 resize-none transition-all duration-300 bg-background text-[16px] leading-relaxed placeholder:text-muted-foreground overflow-hidden w-full sm:w-auto"
           disabled={isGenerating || isImageUploading}
         />
         <Button 
@@ -231,7 +231,8 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
             "h-8 w-8 rounded-md bg-card/20 border border-border/50 text-foreground/90",
             "shadow-[inset_0_1px_2px_hsl(var(--foreground)_/_0.1),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
             "hover:bg-card/30 hover:border-border/70 hover:text-foreground",
-            "ultra-smooth-transition"
+            "ultra-smooth-transition",
+            "w-full sm:w-auto"
           )}
           onClick={() => fileInputRef.current?.click()}
           disabled={isGenerating || isImageUploading}
@@ -249,7 +250,8 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
             "shadow-[inset_0_1px_2px_hsl(var(--foreground)_/_0.1),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
             "hover:bg-card/30 hover:border-border/70 hover:text-foreground",
             "ultra-smooth-transition",
-            isListening && "bg-red-500/20 border-red-500/50 text-red-500 shadow-[inset_0_1px_2px_hsl(0_84%_60%_/_0.2),0_2px_4px_hsl(0_84%_60%_/_0.15)]"
+            isListening && "bg-red-500/20 border-red-500/50 text-red-500 shadow-[inset_0_1px_2px_hsl(0_84%_60%_/_0.2),0_2px_4px_hsl(0_84%_60%_/_0.15)]",
+            "w-full sm:w-auto"
           )}
           onClick={handleToggleListening}
           disabled={isGenerating || isImageUploading || !recognitionRef.current}
@@ -276,7 +278,8 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
             "shadow-[inset_0_1px_2px_hsl(var(--foreground)_/_0.08),0_1px_3px_hsl(var(--foreground)_/_0.06)]",
             "hover:bg-white/20 hover:border-white/50 hover:text-white/90",
             "ultra-smooth-transition",
-            "disabled:bg-muted/20 disabled:border-muted/50 disabled:text-muted/50"
+            "disabled:bg-muted/20 disabled:border-muted/50 disabled:text-muted/50",
+            "w-full sm:w-auto"
           )}
           onMouseEnter={() => setIsSendButtonHovered(true)}
           onMouseLeave={() => setIsSendButtonHovered(false)}

@@ -559,33 +559,32 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
     setShowStaticPlaceholder(false);
 
     let timeoutId: NodeJS.Timeout | null = null;
-    let intervalId: NodeJS.Timeout | null = null;
+    let isCancelled = false;
+    const currentTextRaw = PLACEHOLDER_TEXTS[currentPlaceholderIndex % PLACEHOLDER_TEXTS.length];
+    const currentText = typeof currentTextRaw === 'string' ? currentTextRaw : '';
+    setDisplayedPlaceholder("");
+    setIsTypingPlaceholder(true);
 
-    const animatePlaceholder = () => {
-      setIsTypingPlaceholder(true);
-      const safeCurrentPlaceholderIndex = currentPlaceholderIndex % PLACEHOLDER_TEXTS.length;
-      const currentText = PLACEHOLDER_TEXTS[safeCurrentPlaceholderIndex];
-
-      let i = 0;
-      setDisplayedPlaceholder('');
-
-      intervalId = setInterval(() => {
-        if (i < currentText.length) {
-          setDisplayedPlaceholder((prev) => prev + currentText[i]);
-          i++;
-        } else {
-          if (intervalId) clearInterval(intervalId);
-          timeoutId = setTimeout(() => {
-            setCurrentPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDER_TEXTS.length);
-          }, PLACEHOLDER_HOLD_MS);
+    function typeSentence(idx: number) {
+      if (isCancelled) return;
+      if (idx < currentText.length) {
+        const char = currentText[idx];
+        if (typeof char === 'string') {
+          setDisplayedPlaceholder((prev) => prev + char);
         }
-      }, PLACEHOLDER_TYPING_SPEED_MS);
-    };
+        timeoutId = setTimeout(() => typeSentence(idx + 1), PLACEHOLDER_TYPING_SPEED_MS);
+      } else {
+        setIsTypingPlaceholder(false);
+        timeoutId = setTimeout(() => {
+          setCurrentPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDER_TEXTS.length);
+        }, PLACEHOLDER_HOLD_MS);
+      }
+    }
 
-    animatePlaceholder();
+    typeSentence(0);
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      isCancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [isFocused, currentPlaceholderIndex, inputValue]);
@@ -754,7 +753,10 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
                     handleSend();
                   }
                 }}
-                className="w-full text-base md:text-lg lg:text-xl relative z-[1] flex-grow bg-transparent text-white border-zinc-600 focus:border-white ultra-smooth glass-morphism !ring-0 !ring-offset-0 resize-none transition-all duration-300 placeholder:text-zinc-400 min-h-[48px] max-h-[180px] leading-[1.5]"
+                className="w-full text-sm md:text-base lg:text-lg relative z-[1] flex-grow bg-transparent text-white border-zinc-600 focus:border-white ultra-smooth glass-morphism !ring-0 !ring-offset-0 resize-none transition-all duration-300 placeholder:text-zinc-400 min-h-[48px] max-h-[180px] leading-[1.5] rounded-md text-left placeholder:text-left placeholder:pl-2 placeholder:text-base py-3 pl-3 overflow-hidden pr-2 text-[16px]"
+                style={{
+                  textAlign: 'left',
+                }}
               />
               {inputValue.trim() && (
                 <motion.div

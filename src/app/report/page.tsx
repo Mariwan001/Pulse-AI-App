@@ -146,7 +146,7 @@ export default function ReportPage() {
                     {isValidEmail(userInput) && (
                       <button
                         type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white text-zinc-900 rounded-md px-4 py-1.5 font-semibold shadow-lg transition-all duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] opacity-100 hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-primary/40 flex items-center gap-1 send-ironic-btn"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white text-zinc-900 rounded-md px-4 py-1.5 font-semibold shadow-lg transition-all duration-300 ease-&lsqb;cubic-bezier(0.87,0,0.13,1)&rsqb; opacity-100 hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-primary/40 flex items-center gap-1 send-ironic-btn"
                         style={{
                           transition: 'opacity 400ms cubic-bezier(0.87,0,0.13,1), transform 400ms cubic-bezier(0.87,0,0.13,1)',
                           opacity: 1,
