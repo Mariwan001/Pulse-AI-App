@@ -7,6 +7,7 @@ import type { StreamChunk, UserPreferences } from '@/lib/types';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
 import systemPrompt from '@/ai/systemPrompt';
+import ultraAICoderPrompt from '@/ai/personas/UltraAICoder';
 
 // Helper to convert AsyncGenerator to a ReadableStream
 function AIStream(res: AsyncGenerator<StreamChunk>): ReadableStream {
@@ -60,6 +61,7 @@ async function getUserPreferences(userId: string): Promise<UserPreferences | nul
 
 async function* generateAIResponse(
   prompt: string,
+  selectedPrompt: string,
   isSimplerMode: boolean,
   userId?: string,
   sessionId?: string,
@@ -170,7 +172,7 @@ async function* generateAIResponse(
 
   const messages: { role: 'system' | 'user' | 'assistant'; content: string; }[] = [];
 
-  messages.push({ role: 'system', content: systemPrompt });
+  messages.push({ role: 'system', content: selectedPrompt });
 
   // Debug: Log user preferences to help diagnose missing name
   console.log('User Preferences:', userPreferences);
@@ -286,12 +288,16 @@ async function* generateAIResponse(
     }
   } catch (error) {
     console.error('Error in generateAIResponse:', error);
-    yield { type: 'error' as const, content: "AI error." };
+    yield { type: 'error' as const, content: "Sorry, something went wrong with the AI. Please try again in a moment!" };
   }
 }
 
 export async function POST(req: Request) {
   try {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const persona = url.searchParams.get('persona');
+    const selectedPrompt = persona === 'ultra-coder' ? ultraAICoderPrompt : systemPrompt;
+
     const { query, userId, sessionId } = await req.json();
     const abortSignal = req.signal;
 
@@ -299,17 +305,15 @@ export async function POST(req: Request) {
       await saveMessageToHistory({ userId, sessionId, role: 'user', content: query });
     }
 
-    const stream = generateAIResponse(query, false, userId, sessionId, abortSignal);
-    
+    const stream = generateAIResponse(query, selectedPrompt, false, userId, sessionId, abortSignal);
     return new Response(AIStream(stream), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });
-
   } catch (error) {
     if ((error as any).name === 'AbortError') {
       return new NextResponse('Stream aborted', { status: 499 });
     }
     console.error('[API_CHAT_ERROR]', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return new NextResponse('Sorry, something went wrong with the AI. Please try again in a moment!', { status: 500 });
   }
 }

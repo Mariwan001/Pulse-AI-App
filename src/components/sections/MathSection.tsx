@@ -10,7 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { sendMessage, sendHumanizedMessage } from '@/store/chat-store';
 import MathRenderer from '@/components/ui/MathRenderer';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import ReactTextareaAutosize from 'react-textarea-autosize';
@@ -39,7 +38,6 @@ const MathSection: React.FC<MathSectionProps> = ({ onBackToHome }) => {
   const [showGreeting, setShowGreeting] = useState(true);
   const [mathMessages, setMathMessages] = useState<MathMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [expandedHumanize, setExpandedHumanize] = useState<string | null>(null);
   const [isSimplifying, setIsSimplifying] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isHumanizing, setIsHumanizing] = useState(false);
@@ -323,165 +321,116 @@ const MathSection: React.FC<MathSectionProps> = ({ onBackToHome }) => {
   };
 
   const handleSummarize = async (messageId: string, type: 'simple' | 'accurate') => {
-    const message = mathMessages.find(msg => msg.id === messageId);
-    if (!message || message.role !== 'assistant') return;
+    const messageToSummarize = mathMessages.find(m => m.id === messageId);
+    if (!messageToSummarize) return;
 
     setIsSummarizing(true);
     try {
       let summarizePrompt = '';
       if (type === 'accurate') {
-        summarizePrompt = `Please provide an **EXTREMELY, EXTREMELY, DEEPLY, TOTALLY, SYSTEMATICALLY, TOO POWERFULLY ACCURATE** summary of this text. You must be **WISELY, SMARTLY, WITHOUT FORGETTING, MIXING THINGS UP, BE TOO SPECIFIC, EXTREMELY BE UNMISTAKENLY, NO WAY TO MAKE MISTAKES, AND IMPOSSIBLE TO MAKE MISTAKES**.\n\n**ACCURATE SUMMARY REQUIREMENTS:**\n- **PERFECT ACCURACY**: Every fact, detail, and point must be **100% ACCURATE**\n- **COMPLETE COMPREHENSION**: Understand **EVERY SINGLE DETAIL** without forgetting anything\n- **ZERO MIXING UP**: **NEVER MIX THINGS UP** or confuse different parts\n- **EXTREME SPECIFICITY**: Be **TOO SPECIFIC** - no generalities, only precise details\n- **UNMISTAKABLE PRECISION**: **NO WAY TO MAKE MISTAKES** in your summary\n- **IMPOSSIBLE TO BE WRONG**: Your summary must be **IMPOSSIBLE TO MAKE MISTAKES**\n- **COMPLETE COVERAGE**: Include **ALL IMPORTANT POINTS** with perfect accuracy\n- **LOGICAL FLOW**: Maintain perfect logical structure and flow\n- **SOURCE FIDELITY**: Stay **100% FAITHFUL** to the original content\n\nOriginal text to summarize with EXTREME ACCURACY:\n${message.content}\n\nProvide an **EXTREMELY ACCURATE** summary:`;
+        summarizePrompt = `Please provide an EXTREMELY ACCURATE and DETAILED summary of the following text. Capture all key points, nuances, and important details. The summary should be comprehensive and precise, reflecting the full depth of the original content.\n\nOriginal text:\n${messageToSummarize.content}`;
       } else {
-        summarizePrompt = `Please provide an **EXTREMELY, EXTREMELY, DEEPLY, TOTALLY, SYSTEMATICALLY, TOO POWERFULLY SIMPLE** summary of this text. Use the **SIMPLEST TERMS, SIMPLEST WORDS AND EXPLAINING, WISELY, SMARTLY, WITHOUT FORGETTING, MIXING THINGS UP, BE TOO SPECIFIC, EXTREMELY BE UNMISTAKENLY, NO WAY TO MAKE MISTAKES, AND IMPOSSIBLE TO MAKE MISTAKES**.\n\n**SIMPLE SUMMARY REQUIREMENTS:**\n- **ULTRA SIMPLE LANGUAGE**: Use the **SIMPLEST WORDS POSSIBLE** that anyone can understand\n- **BASIC EXPLANATIONS**: Explain everything in the **MOST BASIC TERMS**\n- **EVERYDAY LANGUAGE**: Use only **EVERYDAY, COMMON WORDS**\n- **NO TECHNICAL TERMS**: Replace ALL complex terms with **SIMPLE ALTERNATIVES**\n- **SHORT SENTENCES**: Use **VERY SHORT, CLEAR SENTENCES**\n- **STEP-BY-STEP**: Break everything into **TINY, EASY PIECES**\n- **CONVERSATIONAL TONE**: Make it sound like **TALKING TO A FRIEND**\n- **ZERO JARGON**: **NO COMPLEX LANGUAGE** whatsoever\n- **PERFECT CLARITY**: Make it **IMPOSSIBLE TO MISUNDERSTAND**\n\nOriginal text to summarize in **ULTRA SIMPLE TERMS**:\n${message.content}\n\nProvide an **EXTREMELY SIMPLE** summary:`;
+        summarizePrompt = `Please summarize the following text in ULTRA SIMPLE terms. Use basic vocabulary and short sentences. Explain it as if you were talking to a 5-year-old.\n\nOriginal text:\n${messageToSummarize.content}`;
       }
-      // Add user message
-      const userMsg: MathMessage = {
-        id: Date.now().toString() + Math.random(),
-        role: 'user' as 'user',
-        content: summarizePrompt,
-        timestamp: new Date(),
-      };
-      setMathMessages(prev => [...prev, userMsg]);
-      // Add assistant placeholder
-      const aiMsgId = Date.now().toString() + Math.random();
-      const aiMsg: MathMessage = {
-        id: aiMsgId,
-        role: 'assistant' as 'assistant',
-        content: '',
-        timestamp: new Date(),
-      };
-      setMathMessages(prev => [...prev, aiMsg]);
-      // Stream response
-      const response = await fetch('/api/ai/math-solver', {
+
+      const response = await fetch('/api/math', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: summarizePrompt }),
+        body: JSON.stringify({ prompt: summarizePrompt }),
       });
-      if (!response.ok || !response.body) throw new Error('No response');
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter(line => line.trim() !== '');
-        for (const line of lines) {
-          try {
-            const parsed = JSON.parse(line);
-            if (parsed.type === 'text') {
-              fullResponse += parsed.content;
-              setMathMessages(prev => prev.map(msg => msg.id === aiMsgId ? { ...msg, content: fullResponse } : msg));
-            }
-          } catch {}
-        }
+
+      if (!response.ok) {
+        throw new Error('Failed to summarize');
       }
+      
+      const data = await response.json();
+
+      const summarizedMessage: MathMessage = {
+        id: `summary-${Date.now()}`,
+        role: 'assistant',
+        content: `📝 **Summary (${type}):**\n\n${data.solution}`,
+        timestamp: new Date(),
+      };
+      setMathMessages(prev => [...prev, summarizedMessage]);
       toast({ description: 'Summary completed!', duration: 2000 });
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to summarize text.', variant: 'destructive', duration: 3000 });
+      toast({ title: "Error", description: "Failed to get summary.", variant: "destructive" });
     } finally {
       setIsSummarizing(false);
     }
   };
 
   const handleHumanize = async (messageId: string, type: 'concise' | 'comprehensive') => {
-    const message = mathMessages.find(msg => msg.id === messageId);
-    if (!message || message.role !== 'assistant') return;
+    const messageToHumanize = mathMessages.find(m => m.id === messageId);
+    if (!messageToHumanize) return;
+
     setIsHumanizing(true);
     setShowHumanizeOptions(false);
     try {
       let humanizePrompt = '';
       if (type === 'concise') {
-        humanizePrompt = `Transform this response into a CONCISE, AUTHENTIC human expression. Make it brief but deeply personal and emotionally resonant.\n\n**Short Humanize Protocol:**\n- Express core emotions and thoughts in 2-3 sentences\n- Use natural contractions and conversational tone\n- Show genuine empathy and personal connection\n- Maintain authenticity without artificial indicators\n- Focus on the most impactful emotional response\n\nOriginal message:\n${message.content}\n\nRespond with concise human authenticity:`;
-      } else {
-        humanizePrompt = `Transform this response into a COMPREHENSIVE, DEEPLY HUMAN expression. Create a rich, emotionally layered response that feels like talking to a close friend.\n\n**Long Humanize Protocol:**\n- Develop full emotional context and personal insights\n- Use natural conversational flow with depth and nuance\n- Express vulnerability, empathy, and genuine care\n- Include personal reflections and meaningful connections\n- Show realistic thinking processes and emotional complexity\n- Use natural qualifiers, fillers, and authentic speech patterns\n- Create a profound human connection through detailed expression\n\n**IMPORTANT: Do NOT use text like "*pauses*", "*thinking*", "*sighs*", or any other artificial indicators. Write naturally as a real human would speak.**\n\nOriginal message:\n${message.content}\n\nRespond with comprehensive human authenticity:`;
+        humanizePrompt = `Transform this response into a CONCISE, AUTHENTIC human expression. Make it brief but deeply personal and emotionally resonant.\n\n**Short Humanize Protocol:**\n- Express core emotions and thoughts in 2-3 sentences\n- Use natural contractions and conversational tone\n- Show genuine empathy and personal connection\n- Maintain authenticity without artificial indicators\n- Focus on the most impactful emotional response\n\nOriginal message:\n${messageToHumanize.content}\n\nRespond with concise human authenticity:`;
+      } else { // comprehensive
+        humanizePrompt = `Transform this response into a COMPREHENSIVE, DEEPLY HUMAN expression. Create a rich, emotionally layered response that feels like talking to a close friend.\n\n**Long Humanize Protocol:**\n- Develop full emotional context and personal insights\n- Use natural conversational flow with depth and nuance\n- Express vulnerability, empathy, and genuine care\n- Include personal reflections and meaningful connections\n- Show realistic thinking processes and emotional complexity\n- Use natural qualifiers, fillers, and authentic speech patterns\n- Create a profound human connection through detailed expression\n\n**IMPORTANT: Do NOT use text like "*pauses*", "*thinking*", "*sighs*", or any other artificial indicators. Write naturally as a real human would speak.**\n\nOriginal message:\n${messageToHumanize.content}\n\nRespond with comprehensive human authenticity:`;
       }
-      // Add user message
-      const userMsg: MathMessage = {
-        id: Date.now().toString() + Math.random(),
-        role: 'user' as 'user',
-        content: humanizePrompt,
-        timestamp: new Date(),
-      };
-      setMathMessages(prev => [...prev, userMsg]);
-      // Add assistant placeholder
-      const aiMsgId = Date.now().toString() + Math.random();
-      const aiMsg: MathMessage = {
-        id: aiMsgId,
-        role: 'assistant' as 'assistant',
-        content: '',
-        timestamp: new Date(),
-      };
-      setMathMessages(prev => [...prev, aiMsg]);
-      // Stream response
-      const response = await fetch('/api/ai/math-solver', {
+      
+      const response = await fetch('/api/math', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: humanizePrompt }),
+        body: JSON.stringify({ prompt: humanizePrompt }),
       });
-      if (!response.ok || !response.body) throw new Error('No response');
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter(line => line.trim() !== '');
-        for (const line of lines) {
-          try {
-            const parsed = JSON.parse(line);
-            if (parsed.type === 'text') {
-              fullResponse += parsed.content;
-              setMathMessages(prev => prev.map(msg => msg.id === aiMsgId ? { ...msg, content: fullResponse } : msg));
-            }
-          } catch {}
-        }
+
+      if (!response.ok) {
+        throw new Error('Failed to humanize');
       }
+      
+      const data = await response.json();
+
+      const humanizedMessage: MathMessage = {
+        id: `humanized-${Date.now()}`,
+        role: 'assistant',
+        content: `💝 **Humanized (${type}):**\n\n${data.solution}`,
+        timestamp: new Date(),
+      };
+      setMathMessages(prev => [...prev, humanizedMessage]);
       toast({ description: 'Humanization completed!', duration: 2000 });
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to humanize text.', variant: 'destructive', duration: 3000 });
+      toast({ title: "Error", description: "Failed to get humanized text.", variant: "destructive" });
     } finally {
       setIsHumanizing(false);
     }
   };
 
   const handleSimplify = async (messageId: string) => {
-    const message = mathMessages.find(msg => msg.id === messageId);
-    if (!message || message.role !== 'assistant') return;
+    const messageToSimplify = mathMessages.find(m => m.id === messageId);
+    if (!messageToSimplify) return;
 
     setIsSimplifying(true);
     try {
-      const simplifyPrompt = `Please explain this in the ULTRA ULTRA SIMPLEST terms possible, using completely different words and explanations. Avoid using ANY of the same terminology from the original text. Make it so simple that a 5-year-old could understand it.
-
-**Rules:**
-- Use the most basic, everyday words possible
-- Replace ALL technical terms with simple alternatives
-- Use completely different sentence structures
-- Break everything into tiny, digestible pieces
-- Use analogies and examples from everyday life
-- Avoid any jargon or complex language
-- Make it conversational and friendly
-
-Original text to simplify:
-${message.content}
-
-Now explain this in ultra simple terms:`;
+      const simplifyPrompt = `Please explain this in the ULTRA ULTRA SIMPLEST terms possible, using completely different words and explanations. Avoid using ANY of the same terminology from the original text. Make it so simple that a 5-year-old could understand it.\n\n**Rules:**\n- Use the most basic, everyday words possible\n- Replace ALL technical terms with simple alternatives\n- Use completely different sentence structures\n- Break everything into tiny, digestible pieces\n- Use analogies and examples from everyday life\n- Avoid any jargon or complex language\n- Make it conversational and friendly\n\nOriginal text to simplify:\n${messageToSimplify.content}\n\nNow explain this in ultra simple terms:`;
       
-      await sendMessage(simplifyPrompt);
-      
-      toast({
-        description: "Making it ultra simple...",
-        duration: 2000,
+      const response = await fetch('/api/math', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: simplifyPrompt }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to simplify');
+      }
+      
+      const data = await response.json();
+
+      const simplifiedMessage: MathMessage = {
+        id: `simplified-${Date.now()}`,
+        role: 'assistant',
+        content: `✨ **Simplified:**\n\n${data.solution}`,
+        timestamp: new Date(),
+      };
+      setMathMessages(prev => [...prev, simplifiedMessage]);
+      toast({ description: 'Simplification completed!', duration: 2000 });
     } catch (error) {
-      console.error('Error simplifying text:', error);
-      toast({
-        title: "Error",
-        description: "Failed to simplify text.",
-        variant: "destructive",
-        duration: 3000,
-      });
+      toast({ title: "Error", description: "Failed to get simplified text.", variant: "destructive" });
     } finally {
       setIsSimplifying(false);
     }
@@ -713,144 +662,6 @@ Now explain this in ultra simple terms:`;
                           </div>
                         ) : (
                           <ClipboardCopy size={16} />
-                        )}
-                      </Button>
-                      {/* Summarize Button */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            disabled={isSummarizing}
-                            className={cn(
-                              "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
-                              "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
-                              "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
-                              "border border-white/10 hover:border-white/20",
-                              "backdrop-blur-sm",
-                              isSummarizing ? "w-auto px-2 py-1 bg-purple-500/15" : "w-7 px-1 justify-center", 
-                              "ultra-smooth-transition flex items-center"
-                            )}
-                            aria-label={isSummarizing ? "Summarizing..." : "Summarize text"}
-                          >
-                            {isSummarizing ? (
-                              <div className="flex items-center gap-1.5">
-                                <Loader2 size={15} className="animate-spin text-purple-600 shrink-0" />
-                                <span className="text-xs text-purple-600 whitespace-nowrap">Summarizing...</span>
-                              </div>
-                            ) : (
-                              <FileText size={16} />
-                            )}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem 
-                            onClick={() => handleSummarize(message.id, 'simple')}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <Sparkles size={16} className="text-green-600" />
-                            <div className="flex flex-col">
-                              <span className="font-medium">Simple</span>
-                              <span className="text-xs text-muted-foreground">Ultra simple terms</span>
-                            </div>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleSummarize(message.id, 'accurate')}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <Target size={16} className="text-blue-600" />
-                            <div className="flex flex-col">
-                              <span className="font-medium">Accurate</span>
-                              <span className="text-xs text-muted-foreground">Extremely precise</span>
-                            </div>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-
-                      {/* Humanize Button */}
-                      <div className="relative">
-                        <Button
-                          variant="ghost"
-                          onClick={toggleHumanizeOptions}
-                          disabled={isHumanizing}
-                          className={cn(
-                            "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
-                            "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
-                            "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
-                            "border border-white/10 hover:border-white/20",
-                            "backdrop-blur-sm",
-                            isHumanizing ? "w-auto px-2 py-1 bg-pink-500/15" : "w-7 px-1 justify-center", 
-                            "ultra-smooth-transition flex items-center"
-                          )}
-                          aria-label={isHumanizing ? "Humanizing..." : "Humanize text"}
-                        >
-                          {isHumanizing ? (
-                            <div className="flex items-center gap-1.5">
-                              <Loader2 size={15} className="animate-spin text-pink-600 shrink-0" />
-                              <span className="text-xs text-pink-600 whitespace-nowrap">Humanizing...</span>
-                            </div>
-                          ) : (
-                            <HumanIcon size={14} />
-                          )}
-                        </Button>
-                        
-                        {/* Smooth Options Transition */}
-                        {showHumanizeOptions && (
-                          <div className="absolute left-0 bottom-full w-32 rounded-md shadow-lg bg-background ring-1 ring-black ring-opacity-5 focus:outline-none z-50 transition-all duration-300 ease-in-out transform opacity-0 scale-95 data-[headlessui-state=open]:opacity-100 data-[headlessui-state=open]:scale-100">
-                            <div className="p-1">
-                              <Button
-                                variant="ghost"
-                                onClick={() => handleHumanize(message.id, 'concise')}
-                                className="w-full justify-start text-left h-auto p-2 hover:bg-accent/50 rounded-sm"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Zap size={14} className="text-yellow-600 shrink-0" />
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-medium">Concise Humanize</span>
-                                    <span className="text-xs text-muted-foreground">Brief, authentic</span>
-                                  </div>
-                                </div>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                onClick={() => handleHumanize(message.id, 'comprehensive')}
-                                className="w-full justify-start text-left h-auto p-2 hover:bg-accent/50 rounded-sm"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Brain size={14} className="text-pink-600 shrink-0" />
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-medium">Comprehensive Humanize</span>
-                                    <span className="text-xs text-muted-foreground">Deep, detailed</span>
-                                  </div>
-                                </div>
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Simplify Button */}
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSimplify(message.id)}
-                        disabled={isSimplifying}
-                        className={cn(
-                          "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
-                          "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
-                          "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
-                          "border border-white/10 hover:border-white/20",
-                          "backdrop-blur-sm",
-                          isSimplifying ? "w-auto px-2 py-1 bg-blue-500/15" : "w-7 px-1 justify-center", 
-                          "ultra-smooth-transition flex items-center"
-                        )}
-                        aria-label={isSimplifying ? "Simplifying..." : "Simplify text"}
-                      >
-                        {isSimplifying ? (
-                          <div className="flex items-center gap-1.5">
-                            <Loader2 size={15} className="animate-spin text-blue-600 shrink-0" />
-                            <span className="text-xs text-blue-600 whitespace-nowrap">Simplifying...</span>
-                          </div>
-                        ) : (
-                          <Lightbulb size={16} />
                         )}
                       </Button>
                     </div>

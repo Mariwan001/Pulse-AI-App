@@ -45,56 +45,66 @@ export const ai = {
     }
 
     try {
-      const completion = await openai.chat.completions.create(params, { signal: abortSignal });
+      let attempt = 0;
+      let lastError = null;
+      while (attempt < 3) {
+        try {
+          const completion = await openai.chat.completions.create(params, { signal: abortSignal });
 
-      let toolFunctionName: string | null = null;
-      let toolArguments = '';
+          let toolFunctionName = null;
+          let toolArguments = '';
 
-      for await (const chunk of completion) {
-        const delta = chunk.choices[0]?.delta;
+          for await (const chunk of completion) {
+            const delta = chunk.choices[0]?.delta;
 
-        if (delta?.content) {
-          yield { type: 'text', content: delta.content };
-        }
+            if (delta?.content) {
+              yield { type: 'text', content: delta.content };
+            }
 
-        if (delta?.tool_calls) {
-          const toolCall = delta.tool_calls[0];
-          if (toolCall.function?.name) {
-            toolFunctionName = toolCall.function.name;
+            if (delta?.tool_calls) {
+              const toolCall = delta.tool_calls[0];
+              if (toolCall.function?.name) {
+                toolFunctionName = toolCall.function.name;
+              }
+              if (toolCall.function?.arguments) {
+                toolArguments += toolCall.function.arguments;
+              }
+            }
+
+            if (chunk.choices[0]?.finish_reason === 'tool_calls') {
+              if (toolFunctionName && toolArguments) {
+                yield {
+                  type: 'tool_code',
+                  toolInvocations: [{
+                    toolName: toolFunctionName,
+                    args: JSON.parse(toolArguments),
+                  }]
+                };
+              }
+              toolFunctionName = null;
+              toolArguments = '';
+            }
           }
-          if (toolCall.function?.arguments) {
-            toolArguments += toolCall.function.arguments;
+          return;
+        } catch (error) {
+          lastError = error;
+          attempt++;
+          if (attempt < 3) {
+            await new Promise(res => setTimeout(res, 500));
           }
-        }
-
-        if (chunk.choices[0]?.finish_reason === 'tool_calls') {
-          if (toolFunctionName && toolArguments) {
-            yield {
-              type: 'tool_code',
-              toolInvocations: [{
-                toolName: toolFunctionName,
-                args: JSON.parse(toolArguments),
-              }]
-            };
-          }
-          // Reset for next potential tool call in the same response
-          toolFunctionName = null;
-          toolArguments = '';
         }
       }
-    } catch (error: any) {
-      console.error('[GROQ_ERROR] Error:', error);
-      if (error && error.status === 503) {
-        yield {
-          type: 'error',
-          content: "The AI service is currently unavailable (Error 503). This is a temporary issue on their end. Please try again in a few moments."
-        };
-      } else {
-        yield {
-          type: 'error',
-          content: "I apologize, but I've encountered an unexpected error while trying to connect to the AI service. Please try again."
-        };
-      }
+      console.error('[GROQ_ERROR] Error after retries:', lastError);
+      yield {
+        type: 'error',
+        content: "Sorry, something went wrong with the AI. Please try again in a moment!"
+      };
+    } catch (error) {
+      console.error('[GROQ_ERROR] Unexpected outer error:', error);
+      yield {
+        type: 'error',
+        content: "Sorry, something went wrong with the AI. Please try again in a moment!"
+      };
     }
   },
 }; 

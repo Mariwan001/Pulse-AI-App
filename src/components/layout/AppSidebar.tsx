@@ -43,6 +43,7 @@ const AppSidebar = ({ onClearChat, onSectionChange, currentSection }: AppSidebar
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isComponentsOpen, setIsComponentsOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
 
   const handleClearChat = async () => {
     setIsClearing(true);
@@ -107,36 +108,66 @@ const AppSidebar = ({ onClearChat, onSectionChange, currentSection }: AppSidebar
       <SidebarSeparator />
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Chat History</SidebarGroupLabel>
-          <SidebarMenu>
-            {sessions.length > 0 ? (
-              sessions.map((session) => (
-                <SidebarMenuItem key={session.id}>
-                  <Link href={`/chat?session_id=${session.id}`} className="flex-grow">
-                    <SidebarMenuButton 
-                      isActive={activeSessionId === session.id}
-                    >
-                      <span className="truncate">{session.topic || 'New Chat'}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              ))
-            ) : (
-              <SidebarMenuItem>
-                <SidebarMenuButton disabled>
-                  <span className="text-muted-foreground">No past chats</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+          <SidebarMenuButton
+            variant="outline"
+            className="w-full flex items-center justify-between px-2 py-1 rounded-lg border border-white/10 bg-black/10 shadow-sm transition-all duration-300 hover:border-gray-500/20 hover:bg-gray-500/5"
+            onClick={() => setIsHistoryOpen((v) => !v)}
+            aria-expanded={isHistoryOpen}
+            aria-controls="chat-history-dropdown"
+          >
+            <span className="text-xs font-light tracking-wide">Chat History</span>
+            <ChevronDown
+              size={18}
+              className={cn(
+                "text-muted-foreground transition-transform duration-300",
+                isHistoryOpen && "rotate-180"
+              )}
+            />
+          </SidebarMenuButton>
+          <div
+            id="chat-history-dropdown"
+            className={cn(
+              "grid overflow-hidden transition-all duration-500 ease-in-out",
+              isHistoryOpen
+                ? "grid-rows-[1fr] opacity-100"
+                : "grid-rows-[0fr] opacity-0"
             )}
-          </SidebarMenu>
+          >
+            <div className="row-span-2">
+              <SidebarMenu>
+                {sessions.length > 0 ? (
+                  sessions.map((session) => (
+                    <SidebarMenuItem key={session.id}>
+                      <Link href={`/chat?session_id=${session.id}`} className="flex-grow">
+                        <SidebarMenuButton 
+                          isActive={activeSessionId === session.id}
+                        >
+                          <span className="truncate">{session.topic || 'New Chat'}</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                  ))
+                ) : (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton disabled>
+                      <span className="text-muted-foreground">No past chats</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+              </SidebarMenu>
+            </div>
+          </div>
         </SidebarGroup>
         <SidebarSeparator />
         <SidebarGroup>
-          <div
-            className="flex items-center justify-between cursor-pointer px-2 py-1 rounded-lg border border-white/10 bg-black/10 shadow-sm transition-all duration-300 hover:border-gray-500/20 hover:bg-gray-500/5"
-            onClick={() => setIsComponentsOpen(!isComponentsOpen)}
+          <SidebarMenuButton
+            variant="outline"
+            className="w-full flex items-center justify-between px-2 py-1 rounded-lg border border-white/10 bg-black/10 shadow-sm transition-all duration-300 hover:border-gray-500/20 hover:bg-gray-500/5"
+            onClick={() => setIsComponentsOpen((v) => !v)}
+            aria-expanded={isComponentsOpen}
+            aria-controls="components-dropdown"
           >
-            <SidebarGroupLabel className="p-0 font-semibold">Components</SidebarGroupLabel>
+            <span className="text-xs font-light tracking-wide">Components</span>
             <ChevronDown
               size={18}
               className={cn(
@@ -144,8 +175,9 @@ const AppSidebar = ({ onClearChat, onSectionChange, currentSection }: AppSidebar
                 isComponentsOpen && "rotate-180"
               )}
             />
-          </div>
+          </SidebarMenuButton>
           <div
+            id="components-dropdown"
             className={cn(
               "grid overflow-hidden transition-all duration-500 ease-in-out",
               isComponentsOpen
@@ -216,7 +248,7 @@ const AppSidebar = ({ onClearChat, onSectionChange, currentSection }: AppSidebar
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
-              </SidebarMenu> 
+              </SidebarMenu>
             </div>
           </div>
         </SidebarGroup>

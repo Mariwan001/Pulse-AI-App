@@ -15,7 +15,8 @@ import {
   Target,
   UserCircle as HumanIcon,
   Zap,
-  Brain
+  Brain,
+  Mic
 } from 'lucide-react';
 import NextImage from 'next/image'; 
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -29,6 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useChatStore } from '@/store/chat-store';
 
 
 interface ChatMessageItemProps {
@@ -42,7 +44,9 @@ const ChatMessageItem: FC<ChatMessageItemProps> = ({ message }) => {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isHumanizing, setIsHumanizing] = useState(false);
   const [showHumanizeOptions, setShowHumanizeOptions] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const { toast } = useToast();
+  const { messages } = useChatStore();
 
   const handleCopy = async () => {
     if (!message.text && !message.aiGeneratedImageUrl && !message.imageDataUri) return;
@@ -245,6 +249,56 @@ Respond with comprehensive human authenticity:`;
     }
   };
 
+  // Speak handler using browser SpeechSynthesis
+  const handleSpeak = () => {
+    if (!message.text) return;
+
+    // Helper to actually speak after voices are loaded
+    const speak = () => {
+      const voices = window.speechSynthesis.getVoices();
+      console.log('Voices available:', voices.length, voices.map(v => v.name));
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        setIsSpeaking(false);
+        return;
+      }
+      const utterance = new window.SpeechSynthesisUtterance(message.text);
+      // Ultra humanized: prefer the most natural, expressive voices
+      const ultraHumanizedVoice =
+        voices.find(v => v.name.includes('Aria Online (Natural)')) ||
+        voices.find(v => v.name.includes('Guy Online (Natural)')) ||
+        voices.find(v => v.name.includes('Libby Online (Natural)')) ||
+        voices.find(v => v.name.includes('Online (Natural)')) ||
+        voices.find(v => v.name.includes('Zira')) ||
+        voices.find(v => v.name.includes('Google US English')) ||
+        voices.find(v => v.name.toLowerCase().includes('natural')) ||
+        voices.find(v => v.name.toLowerCase().includes('neural')) ||
+        voices.find(v => v.name.toLowerCase().includes('female')) ||
+        voices.find(v => v.name.toLowerCase().includes('child')) ||
+        voices[0];
+      utterance.voice = ultraHumanizedVoice;
+      utterance.rate = 1.02;
+      utterance.pitch = 1.08;
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = (e) => {
+        setIsSpeaking(false);
+        console.error('SpeechSynthesisUtterance error:', e);
+      };
+      window.speechSynthesis.speak(utterance);
+    };
+
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        speak();
+        window.speechSynthesis.onvoiceschanged = null;
+      };
+      window.speechSynthesis.getVoices();
+    } else {
+      speak();
+    }
+  };
+
   const renderMessageContent = (text: string): ReactNode[] => {
     const parts: ReactNode[] = [];
     let lastIndex = 0;
@@ -343,7 +397,19 @@ Respond with comprehensive human authenticity:`;
     return parts.length > 0 ? parts : [<span key="text-only">{text}</span>]; 
   };
 
-
+  // Helper to retry the last user message
+  const handleRetry = () => {
+    // Find the last user message before this error message
+    const errorIndex = messages.findIndex((m) => m.id === message.id);
+    if (errorIndex > 0) {
+      for (let i = errorIndex - 1; i >= 0; i--) {
+        if (messages[i].sender === 'user' && messages[i].text) {
+          sendMessage(messages[i].text);
+          break;
+        }
+      }
+    }
+  };
 
   const displayedText = message.text || (message.isLoading && message.sender === 'ai' ? '' : '');
 
@@ -458,6 +524,21 @@ Respond with comprehensive human authenticity:`;
                 ) : (
                   <Lightbulb size={16} />
                 )}
+              </Button>
+            )}
+
+            {/* Speak Button - Only show for AI messages with text */}
+            {!isUser && message.text && (
+              <Button
+                variant="ghost"
+                onClick={handleSpeak}
+                className={cn(
+                  'text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3] shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)] border border-white/10 hover:border-white/20 backdrop-blur-sm w-7 px-1 justify-center ultra-smooth-transition flex items-center',
+                  isSpeaking ? 'animate-pulse' : ''
+                )}
+                aria-label={isSpeaking ? 'Stop speaking' : 'Read aloud'}
+              >
+                <Mic size={16} />
               </Button>
             )}
 
@@ -577,6 +658,20 @@ Respond with comprehensive human authenticity:`;
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+          </div>
+        )}
+
+        {!isUser && message.text && message.text.includes('❌ Error: AI failed to respond.') && (
+          <div className="mt-2 flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              className="text-red-600 border-red-400 hover:bg-red-50"
+            >
+              Retry
+            </Button>
+            <span className="text-xs text-muted-foreground">Try again if your connection is stable.</span>
           </div>
         )}
       </div>

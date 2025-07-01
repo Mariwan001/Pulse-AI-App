@@ -3,7 +3,6 @@
 import type { ChangeEvent, FC, FormEvent } from 'react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Rocket, XCircle, Aperture, Mic, MicOff } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
@@ -225,14 +224,14 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
         />
         <Button 
           type="button" 
-          variant="secondary" 
+          variant="ghost" 
           size="icon" 
           className={cn(
-            "h-8 w-8 rounded-md bg-card/20 border border-border/50 text-foreground/90",
-            "shadow-[inset_0_1px_2px_hsl(var(--foreground)_/_0.1),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
-            "hover:bg-card/30 hover:border-border/70 hover:text-foreground",
-            "ultra-smooth-transition",
-            "w-full sm:w-auto"
+            "h-8 w-8 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
+            "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
+            "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
+            "border border-border/30 hover:border-border/60",
+            "ultra-smooth-transition"
           )}
           onClick={() => fileInputRef.current?.click()}
           disabled={isGenerating || isImageUploading}
@@ -243,15 +242,15 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
         {/* Voice Input Button */}
         <Button
           type="button"
-          variant="secondary"
+          variant="ghost"
           size="icon"
           className={cn(
-            "h-8 w-8 rounded-md bg-card/20 border border-border/50 text-foreground/90",
-            "shadow-[inset_0_1px_2px_hsl(var(--foreground)_/_0.1),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
-            "hover:bg-card/30 hover:border-border/70 hover:text-foreground",
+            "h-8 w-8 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
+            "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
+            "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
+            "border border-border/30 hover:border-border/60",
             "ultra-smooth-transition",
-            isListening && "bg-red-500/20 border-red-500/50 text-red-500 shadow-[inset_0_1px_2px_hsl(0_84%_60%_/_0.2),0_2px_4px_hsl(0_84%_60%_/_0.15)]",
-            "w-full sm:w-auto"
+            isListening && "bg-red-500/20 border-red-500/50 text-red-500 shadow-[inset_0_1px_2px_hsl(0_84%_60%_/_0.2),0_2px_4px_hsl(0_84%_60%_/_0.15)]"
           )}
           onClick={handleToggleListening}
           disabled={isGenerating || isImageUploading || !recognitionRef.current}
@@ -269,26 +268,22 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
         />
         <Button
           type="submit"
-          variant="default"
+          variant="ghost"
           size="icon"
           disabled={(!inputValue.trim() && !selectedImagePreview) || isImageUploading || isGenerating || isLocked}
           aria-label="Send message"
           className={cn(
-            "h-8 w-8 rounded-md bg-white/10 border border-white/30 text-white/80",
-            "shadow-[inset_0_1px_2px_hsl(var(--foreground)_/_0.08),0_1px_3px_hsl(var(--foreground)_/_0.06)]",
-            "hover:bg-white/20 hover:border-white/50 hover:text-white/90",
+            "h-8 w-8 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
+            "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
+            "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
+            "border border-border/30 hover:border-border/60",
             "ultra-smooth-transition",
-            "disabled:bg-muted/20 disabled:border-muted/50 disabled:text-muted/50",
-            "w-full sm:w-auto"
+            "disabled:opacity-50"
           )}
           onMouseEnter={() => setIsSendButtonHovered(true)}
           onMouseLeave={() => setIsSendButtonHovered(false)}
         >
-          {sendButtonAnimationData ? (
-            <Rocket className="h-4 w-4" /> 
-          ) : (
-            <Rocket className="h-4 w-4" />
-          )}
+          <Rocket className="h-4 w-4" />
         </Button>
       </form>
     </div>
