@@ -7,7 +7,7 @@ import type { StreamChunk, UserPreferences } from '@/lib/types';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
 import systemPrompt from '@/ai/systemPrompt';
-import { getUserIdByEmail } from '../humanize/route';
+import { getUserIdByEmail } from '@/ai/flows/user-utils';
 
 // Helper to convert AsyncGenerator to a ReadableStream
 function AIStream(res: AsyncGenerator<StreamChunk>): ReadableStream {
