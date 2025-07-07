@@ -7,6 +7,7 @@ import type { StreamChunk, UserPreferences } from '@/lib/types';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
 import systemPrompt from '@/ai/systemPrompt';
+import { getUserIdByEmail } from '../humanize/route';
 
 // Helper to convert AsyncGenerator to a ReadableStream
 function AIStream(res: AsyncGenerator<StreamChunk>): ReadableStream {
@@ -349,7 +350,10 @@ For any math problem:
     }
 
     if (userEmail && sessionId && response.trim()) {
-      await saveMessageToHistory({ userEmail, sessionId, role: 'assistant', content: response });
+      const userId = await getUserIdByEmail(userEmail);
+      if (userId) {
+        await saveMessageToHistory({ userId, userEmail, sessionId, role: 'assistant', content: response });
+      }
     }
   } catch (error) {
     console.error('Error in generateMathSolverResponse:', error);
@@ -363,7 +367,10 @@ export async function POST(req: Request) {
     const abortSignal = req.signal;
 
     if (userEmail && sessionId) {
-      await saveMessageToHistory({ userEmail, sessionId, role: 'user', content: query });
+      const userId2 = await getUserIdByEmail(userEmail);
+      if (userId2) {
+        await saveMessageToHistory({ userId: userId2, userEmail, sessionId, role: 'user', content: query });
+      }
     }
 
     const stream = generateMathSolverResponse(query, userEmail, sessionId, abortSignal);
