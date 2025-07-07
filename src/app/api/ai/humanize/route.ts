@@ -57,7 +57,7 @@ async function getUserPreferences(userEmail: string): Promise<UserPreferences | 
   }
 }
 
-async function getUserIdByEmail(userEmail: string): Promise<string | null> {
+export async function getUserIdByEmail(userEmail: string): Promise<string | null> {
   try {
     const supabaseAdmin = getSupabaseAdminClient();
     const { data, error } = await supabaseAdmin
