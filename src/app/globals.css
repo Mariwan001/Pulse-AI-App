@@ -321,3 +321,12 @@
 .symbol-button:hover {
   animation: symbol-hover 0.3s ease-in-out;
 }
+
+.logout-dropdown-item:hover, .logout-dropdown-item:focus {
+  background: rgba(255, 80, 80, 0.12) !important;
+  color: #ff4d4f !important;
+  transition: background 0.18s cubic-bezier(0.4,0,0.2,1), color 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+.logout-dropdown-item svg {
+  color: #ff4d4f !important;
+}

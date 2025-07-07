@@ -8,7 +8,10 @@ import { cn } from "@/lib/utils";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import type { UserPreferences } from "@/lib/types";
 
-// Animated Text Hook
+
+
+
+
 function useAnimatedText(text: string, delimiter: string = "") {
   const [cursor, setCursor] = useState(0);
   const [startingCursor, setStartingCursor] = useState(0);
@@ -141,11 +144,13 @@ Button.displayName = "Button";
 interface AIOnboardingProps {
   className?: string;
   onComplete: (preferences: UserPreferences) => void;
+  setAuthOpen?: (open: boolean) => void;
+  setAuthMode?: (mode: 'signup' | 'login' | 'reset') => void;
 }
 
 type OnboardingStep = "greeting" | "ai-name" | "user-name" | "response-style";
 
-function AIOnboarding({ className, onComplete }: AIOnboardingProps) {
+function AIOnboarding({ className, onComplete, setAuthOpen, setAuthMode }: AIOnboardingProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("greeting");
   const [inputValue, setInputValue] = useState("");
@@ -165,43 +170,60 @@ function AIOnboarding({ className, onComplete }: AIOnboardingProps) {
       if (onboardingCompleted === 'true') {
         const cachedPrefs = sessionStorage.getItem('userPreferences');
         if (cachedPrefs) {
-          onComplete(JSON.parse(cachedPrefs));
-          return;
+          try {
+            const preferences = JSON.parse(cachedPrefs);
+            if (preferences.onboardingCompleted && preferences.aiName && preferences.userName) {
+              console.log('Onboarding: Found valid cached preferences, completing onboarding');
+              onComplete(preferences);
+              return;
+            }
+          } catch (e) {
+            console.error("Failed to parse cached preferences:", e);
+            sessionStorage.removeItem('userPreferences');
+            sessionStorage.removeItem('onboardingCompleted');
+          }
         }
       }
 
-      // 2. If not in session, check Supabase
+      // 2. If not in session, check Supabase (but don't fail if DB is not available)
       try {
         const supabase = getSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         
         if (user) {
-          const { data: preferences } = await supabase
-            .from('user_preferences')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
+          try {
+            const { data: preferences } = await supabase
+              .from('user_preferences')
+              .select('*')
+              .eq('user_id', user.id)
+              .single();
 
-          if (preferences && preferences.onboarding_completed) {
-            const finalPreferences = {
-              aiName: preferences.ai_name,
-              userName: preferences.user_name,
-              responseStyle: preferences.response_style,
-              onboardingCompleted: true,
-            };
-            // Cache in sessionStorage for next time
-            sessionStorage.setItem('userPreferences', JSON.stringify(finalPreferences));
-            sessionStorage.setItem('onboardingCompleted', 'true');
-            onComplete(finalPreferences);
-            return;
+            if (preferences && preferences.onboarding_completed) {
+              const finalPreferences = {
+                aiName: preferences.ai_name || '',
+                userName: preferences.user_name || '',
+                responseStyle: preferences.response_style || 'detailed',
+                onboardingCompleted: true,
+              };
+              // Cache in sessionStorage for next time
+              sessionStorage.setItem('userPreferences', JSON.stringify(finalPreferences));
+              sessionStorage.setItem('onboardingCompleted', 'true');
+              console.log('Onboarding: Found database preferences, completing onboarding');
+              onComplete(finalPreferences);
+              return;
+            }
+          } catch (dbError) {
+            console.log('Onboarding: Database query failed, continuing with onboarding:', dbError);
+            // Continue to show onboarding if database query fails
           }
         }
       } catch (error) {
-        if (error && (error as any).code !== 'PGRST116') { // PGRST116: No rows found
-          console.error("Error checking onboarding status:", error);
-        }
+        console.log('Onboarding: Supabase client error, continuing with onboarding:', error);
+        // Continue to show onboarding if Supabase is not available
       }
+      
       // 3. If no user or not completed, show onboarding
+      console.log('Onboarding: No valid preferences found, showing onboarding');
       setIsLoading(false);
     };
 
@@ -236,48 +258,59 @@ function AIOnboarding({ className, onComplete }: AIOnboardingProps) {
   }, [currentStep]);
 
     const saveUserPreferences = async (finalPreferences: UserPreferences) => {
-    const supabase = getSupabaseClient();
+    // Always save to sessionStorage first for immediate persistence
+    sessionStorage.setItem('userPreferences', JSON.stringify(finalPreferences));
+    sessionStorage.setItem('onboardingCompleted', 'true');
+    
     try {
+      const supabase = getSupabaseClient();
       // Get the currently authenticated user from Supabase
       const { data: { user } } = await supabase.auth.getUser();
       let userId = user?.id;
+      let userEmail = user?.email;
 
       if (!userId) {
-        // If no user, sign in anonymously to get a stable ID
-        const { data: { user: newUser } } = await supabase.auth.signInAnonymously();
-        userId = newUser?.id;
-        if (!userId) {
-          console.error("Failed to get a user ID from Supabase anonymous sign-in.");
-          return false;
-        }
+        // Only show the login modal if the user tries to save preferences, not after onboarding completes
+        // REMOVE or GUARD this block to prevent auth modal from showing after onboarding
+        // if (setAuthOpen && setAuthMode) {
+        //   setAuthMode('login');
+        //   setAuthOpen(true);
+        // }
+        // Return true anyway since we saved to sessionStorage
+        return true;
       }
 
-      // Save to sessionStorage for the current session only
-      sessionStorage.setItem('userPreferences', JSON.stringify(finalPreferences));
-      sessionStorage.setItem('onboardingCompleted', 'true');
+      // Try to save to Supabase for long-term persistence
+      try {
+        const { error } = await supabase
+          .from('user_preferences')
+          .upsert({
+            user_id: userId,
+            user_email: userEmail,
+            ai_name: finalPreferences.aiName,
+            user_name: finalPreferences.userName,
+            response_style: finalPreferences.responseStyle,
+            onboarding_completed: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' });
 
-      // Save to Supabase for long-term persistence
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: userId,
-          ai_name: finalPreferences.aiName,
-          user_name: finalPreferences.userName,
-          response_style: finalPreferences.responseStyle,
-          onboarding_completed: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' }); // Use onConflict to avoid race conditions
-
-      if (error) {
-        console.error('Error saving preferences:', error);
-        // Still continue even if Supabase fails, as we have sessionStorage
+        if (error) {
+          console.error('Error saving preferences to database:', error);
+          // Still return true since we have sessionStorage
+        } else {
+          console.log('Preferences saved to database successfully');
+        }
+      } catch (dbError) {
+        console.error('Database error during save:', dbError);
+        // Still return true since we have sessionStorage
       }
 
       return true;
     } catch (error) {
-      console.error('Error saving user preferences:', error);
-      return false;
+      console.error('Error in saveUserPreferences:', error);
+      // Return true anyway since we saved to sessionStorage
+      return true;
     }
   };
 

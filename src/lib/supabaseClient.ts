@@ -14,3 +14,6 @@ export const getSupabaseClient = () => {
   }
   return supabaseInstance;
 };
+
+// Export a singleton for convenience
+export const supabase = getSupabaseClient();

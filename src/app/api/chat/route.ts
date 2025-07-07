@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
 import systemPrompt from '@/ai/systemPrompt';
 import ultraAICoderPrompt from '@/ai/personas/UltraAICoder';
+import { v4 as uuidv4 } from 'uuid';
 
 // Helper to convert AsyncGenerator to a ReadableStream
 function AIStream(res: AsyncGenerator<StreamChunk>): ReadableStream {
@@ -28,15 +29,21 @@ function AIStream(res: AsyncGenerator<StreamChunk>): ReadableStream {
 }
 
 // Function to get user preferences using the secure admin client
-async function getUserPreferences(userId: string): Promise<UserPreferences | null> {
+async function getUserPreferences(userEmail: string, userId?: string): Promise<UserPreferences | null> {
   try {
     // Use the admin client which has service_role privileges
-        const supabaseAdmin = getSupabaseAdminClient();
-    const { data, error } = await supabaseAdmin
-      .from('user_preferences')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    const supabaseAdmin = getSupabaseAdminClient();
+    let query = supabaseAdmin.from('user_preferences').select('*');
+    
+    if (userId) {
+      query = query.eq('user_id', userId);
+    } else if (userEmail) {
+      query = query.eq('user_email', userEmail);
+    } else {
+      return null;
+    }
+
+    const { data, error } = await query.single();
 
     if (error || !data) {
       return null;
@@ -63,19 +70,20 @@ async function* generateAIResponse(
   prompt: string,
   selectedPrompt: string,
   isSimplerMode: boolean,
-  userId?: string,
+  userEmail?: string,
   sessionId?: string,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  userId?: string
 ): AsyncGenerator<StreamChunk> {
   let userData: any = null;
   let userPreferences: UserPreferences | null = null;
   let history: any[] = [];
 
-  if (userId) {
+  if (userEmail) {
     const promises = [
-      getUserData(userId),
-      getUserPreferences(userId),
-      sessionId ? getChatHistory(userId, sessionId) : Promise.resolve([]),
+      getUserData(userEmail),
+      getUserPreferences(userEmail, userId),
+      sessionId ? getChatHistory(userEmail, sessionId) : Promise.resolve([]),
     ];
 
     const [userDataResult, userPreferencesResult, historyResult] = await Promise.all(promises);
@@ -103,11 +111,11 @@ async function* generateAIResponse(
       }
     },
     run: async (args: { profileData: Record<string, any> }) => {
-      if (!userId) {
-        console.warn("updateUserProfileTool: userId is missing. Cannot update profile.");
+      if (!userEmail) {
+        console.warn("updateUserProfileTool: userEmail is missing. Cannot update profile.");
         return;
       }
-      await updateUserProfile(userId, args.profileData);
+      await updateUserProfile(userEmail, args.profileData);
     },
   };
 
@@ -283,8 +291,8 @@ async function* generateAIResponse(
       response = followUpResponse;
     }
 
-    if (userId && sessionId && response.trim()) {
-      await saveMessageToHistory({ userId, sessionId, role: 'assistant', content: response });
+    if (userEmail && userId && sessionId && response.trim()) {
+      await saveMessageToHistory({ userId, userEmail, sessionId, role: 'assistant', content: response });
     }
   } catch (error) {
     console.error('Error in generateAIResponse:', error);
@@ -294,18 +302,119 @@ async function* generateAIResponse(
 
 export async function POST(req: Request) {
   try {
+    console.log('API: POST request received');
     const url = new URL(req.url, `http://${req.headers.host}`);
     const persona = url.searchParams.get('persona');
     const selectedPrompt = persona === 'ultra-coder' ? ultraAICoderPrompt : systemPrompt;
 
-    const { query, userId, sessionId } = await req.json();
+    const requestBody = await req.json();
+    console.log('API: Request body:', requestBody);
+    
+    const { query, userEmail, sessionId, userId: requestUserId } = requestBody;
+    console.log('API: Extracted parameters - query:', query, 'userEmail:', userEmail, 'sessionId:', sessionId, 'requestUserId:', requestUserId);
+    
     const abortSignal = req.signal;
 
-    if (userId && sessionId) {
-      await saveMessageToHistory({ userId, sessionId, role: 'user', content: query });
+    // Get userId from Supabase session or request
+    const supabaseAdmin = getSupabaseAdminClient();
+    let userId = requestUserId;
+    if (userEmail && !userId) {
+      console.log('API: Looking up user by email:', userEmail);
+      
+      // Try to get user from auth.users table
+      const { data: user, error: userError } = await supabaseAdmin
+        .from('auth.users')
+        .select('id')
+        .eq('email', userEmail)
+        .single();
+      
+      if (userError) {
+        console.log('API: Error looking up user in auth.users:', userError);
+        // Try alternative approach - get user from profiles or user_preferences
+        const { data: profileUser } = await supabaseAdmin
+          .from('user_preferences')
+          .select('user_email')
+          .eq('user_email', userEmail)
+          .single();
+        
+        if (profileUser) {
+          console.log('API: Found user in user_preferences, generating UUID');
+          userId = uuidv4(); // Generate a new UUID for this user
+        }
+      } else {
+        userId = user?.id || null;
+        console.log('API: Found userId from auth.users:', userId);
+      }
+      
+      // If still no userId, create a fallback
+      if (!userId) {
+        console.log('API: No userId found, generating new UUID');
+        userId = uuidv4(); // Generate a new UUID for this user
+      }
+    } else {
+      console.log('API: No userEmail provided or userId already provided');
     }
 
-    const stream = generateAIResponse(query, selectedPrompt, false, userId, sessionId, abortSignal);
+    // If userId is missing, reject the request (do not allow chat for anonymous users)
+    if (!userId) {
+      console.log('API: No userId provided, rejecting chat request');
+      return new Response(JSON.stringify({ error: 'User must be authenticated to chat.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // If no sessionId, this is a landing page request: create a new session, save the message, and return session_id
+    if (userEmail && !sessionId) {
+      console.log('API: Landing page request detected - creating new session');
+      const newSessionId = uuidv4();
+      console.log('API: Generated session ID:', newSessionId);
+      
+      // Use userId if available, otherwise use userEmail
+      const effectiveUserId = userId || userEmail;
+      console.log('API: Using effectiveUserId:', effectiveUserId);
+      
+      try {
+        await saveMessageToHistory({ userId: effectiveUserId, userEmail, sessionId: newSessionId, role: 'user', content: query });
+        console.log('API: Message saved to history');
+        
+        // If this is an anonymous user (no userId), store the email for session persistence
+        if (!userId) {
+          console.log('API: Anonymous user detected, storing email for session persistence');
+          const responseData = { 
+            session_id: newSessionId,
+            anonymous_user: true,
+            user_email: userEmail
+          };
+          const responseJson = JSON.stringify(responseData);
+          console.log('API: Returning JSON response for anonymous user:', responseJson);
+          
+          return new Response(responseJson, {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      } catch (saveError) {
+        console.log('API: Error saving message to history:', saveError);
+        // Continue anyway - we'll still return the session_id
+      }
+      
+      const responseData = { session_id: newSessionId };
+      const responseJson = JSON.stringify(responseData);
+      console.log('API: Returning JSON response:', responseJson);
+      
+      return new Response(responseJson, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // If sessionId is provided, this is a normal chat streaming request
+    if (userEmail && userId && sessionId) {
+      console.log('API: Normal chat request - saving message to existing session');
+      await saveMessageToHistory({ userId, userEmail, sessionId, role: 'user', content: query });
+    }
+
+    console.log('API: Generating streaming response');
+    const stream = generateAIResponse(query, selectedPrompt, false, userEmail, sessionId, abortSignal, userId);
     return new Response(AIStream(stream), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });

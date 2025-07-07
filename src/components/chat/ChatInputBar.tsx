@@ -184,9 +184,9 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
   }, [isListening, toast]);
 
   return (
-    <div className="sticky bottom-0 bg-background border-t border-border p-4">
+    <div className="sticky bottom-0 bg-background border-t border-border p-2 sm:p-3 md:p-4">
       {selectedImagePreview && (
-        <div className="mb-2 p-2 border border-border rounded-md relative bg-card max-w-xs">
+        <div className="mb-2 p-2 border border-border rounded-md relative bg-card max-w-xs mx-auto sm:mx-0">
           <p className="text-xs text-muted-foreground mb-1 truncate">
             {selectedImageFile?.name || 'Attached image'}
           </p>
@@ -195,16 +195,16 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
             alt="Preview of the image you selected to send" 
             width={80} 
             height={80} 
-            className="rounded-md object-cover max-h-20 w-auto" 
+            className="rounded-md object-cover max-h-16 sm:max-h-20 w-auto" 
           />
           <Button 
             variant="ghost" 
             size="icon" 
-            className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-foreground"
+            className="absolute top-1 right-1 h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground hover:text-foreground"
             onClick={handleRemoveImage}
             aria-label="Remove image"
           >
-            <XCircle size={18} />
+            <XCircle size={16} className="sm:w-[18px] sm:h-[18px]" />
           </Button>
         </div>
       )}
@@ -214,50 +214,71 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
       >
         <ReactTextareaAutosize
           minRows={1}
-          maxRows={6}
+          maxRows={4}
           placeholder="Type your message..."
           value={inputValue}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleSubmit(e as any); } }}
-          className="flex-1 h-10 rounded-lg border border-border/50 focus:border-orange-500/50 px-3 py-2 resize-none transition-all duration-300 bg-background text-[16px] leading-relaxed placeholder:text-muted-foreground overflow-hidden w-full sm:w-auto"
+          className="flex-1 min-h-[40px] sm:min-h-[44px] md:min-h-[48px] rounded-lg border border-border/50 focus:border-orange-500/50 px-3 py-2 resize-none transition-all duration-300 bg-background text-sm sm:text-base leading-relaxed placeholder:text-muted-foreground overflow-hidden w-full sm:w-auto"
           disabled={isGenerating || isImageUploading}
         />
-        <Button 
-          type="button" 
-          variant="ghost" 
-          size="icon" 
-          className={cn(
-            "h-8 w-8 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
-            "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
-            "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
-            "border border-border/30 hover:border-border/60",
-            "ultra-smooth-transition"
-          )}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isGenerating || isImageUploading}
-          aria-label="Attach image"
-        >
-          {isImageUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Aperture className="h-4 w-4" />}
-        </Button>
-        {/* Voice Input Button */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "h-8 w-8 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
-            "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
-            "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
-            "border border-border/30 hover:border-border/60",
-            "ultra-smooth-transition",
-            isListening && "bg-red-500/20 border-red-500/50 text-red-500 shadow-[inset_0_1px_2px_hsl(0_84%_60%_/_0.2),0_2px_4px_hsl(0_84%_60%_/_0.15)]"
-          )}
-          onClick={handleToggleListening}
-          disabled={isGenerating || isImageUploading || !recognitionRef.current}
-          aria-label={isListening ? "Stop listening" : "Start voice input"}
-        >
-          {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        </Button>
+        <div className="flex items-center justify-center gap-1 sm:gap-2">
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon" 
+            className={cn(
+              "h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
+              "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
+              "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
+              "border border-border/30 hover:border-border/60",
+              "ultra-smooth-transition"
+            )}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isGenerating || isImageUploading}
+            aria-label="Attach image"
+          >
+            {isImageUploading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : <Aperture className="h-4 w-4 sm:h-5 sm:w-5" />}
+          </Button>
+          {/* Voice Input Button */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
+              "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
+              "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
+              "border border-border/30 hover:border-border/60",
+              "ultra-smooth-transition",
+              isListening && "bg-red-500/20 border-red-500/50 text-red-500 shadow-[inset_0_1px_2px_hsl(0_84%_60%_/_0.2),0_2px_4px_hsl(0_84%_60%_/_0.15)]"
+            )}
+            onClick={handleToggleListening}
+            disabled={isGenerating || isImageUploading || !recognitionRef.current}
+            aria-label={isListening ? "Stop listening" : "Start voice input"}
+          >
+            {isListening ? <MicOff className="h-4 w-4 sm:h-5 sm:w-5" /> : <Mic className="h-4 w-4 sm:h-5 sm:w-5" />}
+          </Button>
+          <Button
+            type="submit"
+            variant="ghost"
+            size="icon"
+            disabled={(!inputValue.trim() && !selectedImagePreview) || isImageUploading || isGenerating || isLocked}
+            aria-label="Send message"
+            className={cn(
+              "h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
+              "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
+              "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
+              "border border-border/30 hover:border-border/60",
+              "ultra-smooth-transition",
+              "disabled:opacity-50"
+            )}
+            onMouseEnter={() => setIsSendButtonHovered(true)}
+            onMouseLeave={() => setIsSendButtonHovered(false)}
+          >
+            <Rocket className="h-4 w-4 sm:h-5 sm:w-5" />
+          </Button>
+        </div>
         <input 
           type="file" 
           accept="image/*" 
@@ -266,25 +287,6 @@ const ChatInputBar: FC<ChatInputBarProps> = ({
           style={{ display: 'none' }} 
           disabled={isImageUploading || isGenerating}
         />
-        <Button
-          type="submit"
-          variant="ghost"
-          size="icon"
-          disabled={(!inputValue.trim() && !selectedImagePreview) || isImageUploading || isGenerating || isLocked}
-          aria-label="Send message"
-          className={cn(
-            "h-8 w-8 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
-            "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
-            "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
-            "border border-border/30 hover:border-border/60",
-            "ultra-smooth-transition",
-            "disabled:opacity-50"
-          )}
-          onMouseEnter={() => setIsSendButtonHovered(true)}
-          onMouseLeave={() => setIsSendButtonHovered(false)}
-        >
-          <Rocket className="h-4 w-4" />
-        </Button>
       </form>
     </div>
   );

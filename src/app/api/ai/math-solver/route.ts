@@ -27,13 +27,14 @@ function AIStream(res: AsyncGenerator<StreamChunk>): ReadableStream {
 }
 
 // Function to get user preferences using the secure admin client
-async function getUserPreferences(userId: string): Promise<UserPreferences | null> {
+async function getUserPreferences(userEmail: string): Promise<UserPreferences | null> {
   try {
+    // Use the admin client which has service_role privileges
     const supabaseAdmin = getSupabaseAdminClient();
     const { data, error } = await supabaseAdmin
       .from('user_preferences')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_email', userEmail)
       .single();
 
     if (error || !data) {
@@ -59,7 +60,7 @@ async function getUserPreferences(userId: string): Promise<UserPreferences | nul
 
 async function* generateMathSolverResponse(
   prompt: string,
-  userId?: string,
+  userEmail?: string,
   sessionId?: string,
   abortSignal?: AbortSignal
 ): AsyncGenerator<StreamChunk> {
@@ -67,11 +68,11 @@ async function* generateMathSolverResponse(
   let userPreferences: UserPreferences | null = null;
   let history: any[] = [];
 
-  if (userId) {
+  if (userEmail) {
     const promises = [
-      getUserData(userId),
-      getUserPreferences(userId),
-      sessionId ? getChatHistory(userId, sessionId) : Promise.resolve([]),
+      getUserData(userEmail),
+      getUserPreferences(userEmail),
+      sessionId ? getChatHistory(userEmail, sessionId) : Promise.resolve([]),
     ];
 
     const [userDataResult, userPreferencesResult, historyResult] = await Promise.all(promises);
@@ -99,11 +100,11 @@ async function* generateMathSolverResponse(
       }
     },
     run: async (args: { profileData: Record<string, any> }) => {
-      if (!userId) {
-        console.warn("updateUserProfileTool: userId is missing. Cannot update profile.");
+      if (!userEmail) {
+        console.warn("updateUserProfileTool: userEmail is missing. Cannot update profile.");
         return;
       }
-      // await updateUserProfile(userId, args.profileData);
+      // await updateUserProfile(userEmail, args.profileData);
     },
   };
 
@@ -347,8 +348,8 @@ For any math problem:
       response = followUpResponse;
     }
 
-    if (userId && sessionId && response.trim()) {
-      await saveMessageToHistory({ userId, sessionId, role: 'assistant', content: response });
+    if (userEmail && sessionId && response.trim()) {
+      await saveMessageToHistory({ userEmail, sessionId, role: 'assistant', content: response });
     }
   } catch (error) {
     console.error('Error in generateMathSolverResponse:', error);
@@ -358,14 +359,14 @@ For any math problem:
 
 export async function POST(req: Request) {
   try {
-    const { query, userId, sessionId } = await req.json();
+    const { query, userEmail, sessionId } = await req.json();
     const abortSignal = req.signal;
 
-    if (userId && sessionId) {
-      await saveMessageToHistory({ userId, sessionId, role: 'user', content: query });
+    if (userEmail && sessionId) {
+      await saveMessageToHistory({ userEmail, sessionId, role: 'user', content: query });
     }
 
-    const stream = generateMathSolverResponse(query, userId, sessionId, abortSignal);
+    const stream = generateMathSolverResponse(query, userEmail, sessionId, abortSignal);
     
     return new Response(AIStream(stream), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },

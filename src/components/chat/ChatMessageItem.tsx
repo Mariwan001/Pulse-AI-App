@@ -1,7 +1,7 @@
 import type { FC, ReactNode } from 'react';
 import type { Message } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { 
   BrainCircuit as AiIcon, 
@@ -21,7 +21,7 @@ import {
 import NextImage from 'next/image'; 
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { sendMessage, sendHumanizedMessage } from '@/store/chat-store';
 import {
@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useChatStore } from '@/store/chat-store';
+import { supabase } from '@/lib/supabaseClient';
 
 
 interface ChatMessageItemProps {
@@ -46,7 +47,20 @@ const ChatMessageItem: FC<ChatMessageItemProps> = ({ message }) => {
   const [showHumanizeOptions, setShowHumanizeOptions] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const { toast } = useToast();
-  const { messages } = useChatStore();
+  const { messages, userId, userEmail, avatarUrl } = useChatStore();
+
+  // Determine if this user message is from the current user
+  const isCurrentUserMsg = isUser && (
+    (message.userId && userId && message.userId === userId) ||
+    (message.userEmail && userEmail && message.userEmail === userEmail)
+  );
+
+  // Diagnostic logging
+  if (typeof window !== 'undefined') {
+    console.log('[ChatMessageItem] message:', message);
+    console.log('[ChatMessageItem] current userId:', userId, 'userEmail:', userEmail, 'avatarUrl:', avatarUrl);
+    console.log('[ChatMessageItem] isCurrentUserMsg:', isCurrentUserMsg, 'avatar shown:', isCurrentUserMsg ? (avatarUrl || '/placeholder-user.jpg') : '/placeholder-user.jpg');
+  }
 
   const handleCopy = async () => {
     if (!message.text && !message.aiGeneratedImageUrl && !message.imageDataUri) return;
@@ -414,14 +428,23 @@ Respond with comprehensive human authenticity:`;
   const displayedText = message.text || (message.isLoading && message.sender === 'ai' ? '' : '');
 
   return (
-    <div className={cn('group flex items-start gap-2 my-3', isUser ? 'flex-row-reverse' : 'flex-row')}>
+    <div className={cn('group flex items-start gap-2 sm:gap-3 my-2 sm:my-3', isUser ? 'flex-row-reverse' : 'flex-row')}>
       <Avatar className={cn(
-          "h-8 w-8 self-start shrink-0",
+          "h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 self-start shrink-0",
           // For AI: Force rounded-lg, maintain overflow-hidden, and add 3D shadow
           !isUser && "!rounded-lg overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)]",
           // For User: Add obvious, clean, soft 3D styling
           isUser && "rounded-full bg-card/20 border border-border/50 shadow-[inset_0_1px_2px_hsl(var(--foreground)_/_0.1),0_2px_4px_hsl(var(--foreground)_/_0.08)]"
         )}>
+        {isUser ? (
+          <AvatarImage 
+            key={(isCurrentUserMsg ? avatarUrl : undefined) + '-' + message.id}
+            src={isCurrentUserMsg ? (avatarUrl || "/placeholder-user.jpg") : "/placeholder-user.jpg"}
+            width={32}
+            height={32}
+            style={{ minWidth: 32, minHeight: 32, objectFit: 'cover' }}
+          />
+        ) : null}
         <AvatarFallback className={cn(
           isUser ? "bg-card/20 text-foreground/90 rounded-full" :
             // For AI: Soft muted background and contrasting icon color
@@ -429,39 +452,39 @@ Respond with comprehensive human authenticity:`;
           // For AI: Force rounded-lg to match the Avatar container's new shape
           !isUser && "!rounded-lg"
         )}>
-          {isUser ? <User size={18} /> : <AiIcon size={18} />}
+          {isUser ? <User size={16} className="sm:w-[18px] sm:h-[18px]" /> : <AiIcon size={16} className="sm:w-[18px] sm:h-[18px]" />}
         </AvatarFallback>
       </Avatar>
 
       <div className={cn("flex flex-col flex-1", isUser ? "items-end" : "items-start")}>
         <div
           className={cn(
-            'max-w-[85%] md:max-w-[75%]', // Adjusted max-width
+            'max-w-[90%] sm:max-w-[85%] md:max-w-[75%]', // Adjusted max-width for better mobile experience
             isUser
-              ? 'bg-white/90 backdrop-blur-sm text-black rounded-lg px-3 py-2 md:px-4 md:py-2 rounded-br-none border border-white/40 shadow-[inset_0_1px_2px_hsl(0_0%_100%_/_0.15),0_2px_6px_hsl(var(--foreground)_/_0.06)] hover:shadow-[inset_0_1px_2px_hsl(0_0%_100%_/_0.2),0_3px_8px_hsl(var(--foreground)_/_0.08)] ultra-smooth-transition'
-              : 'bg-card/60 backdrop-blur-sm text-card-foreground rounded-lg px-3 py-2 md:px-4 md:py-2 rounded-bl-none border border-card/40 shadow-[inset_0_1px_2px_hsl(var(--card)_/_0.15),0_2px_6px_hsl(var(--foreground)_/_0.06)] hover:shadow-[inset_0_1px_2px_hsl(var(--card)_/_0.2),0_3px_8px_hsl(var(--foreground)_/_0.08)] ultra-smooth-transition' // AI bubble style
+              ? 'bg-white/90 backdrop-blur-sm text-black rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 md:px-4 md:py-2 rounded-br-none border border-white/40 shadow-[inset_0_1px_2px_hsl(0_0%_100%_/_0.15),0_2px_6px_hsl(var(--foreground)_/_0.06)] hover:shadow-[inset_0_1px_2px_hsl(0_0%_100%_/_0.2),0_3px_8px_hsl(var(--foreground)_/_0.08)] ultra-smooth-transition'
+              : 'bg-card/60 backdrop-blur-sm text-card-foreground rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 md:px-4 md:py-2 rounded-bl-none border border-card/40 shadow-[inset_0_1px_2px_hsl(var(--card)_/_0.15),0_2px_6px_hsl(var(--foreground)_/_0.06)] hover:shadow-[inset_0_1px_2px_hsl(var(--card)_/_0.2),0_3px_8px_hsl(var(--foreground)_/_0.08)] ultra-smooth-transition' // AI bubble style
           )}
         >
           {message.isLoading && !displayedText && !message.aiGeneratedImageUrl && !message.imageDataUri ? (
             <div className="flex items-center justify-center space-x-2 py-1">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Pulse Ai</span>
+              <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-muted-foreground" />
+              <span className="text-xs sm:text-sm text-muted-foreground">Pulse Ai</span>
             </div>
           ) : (
             <>
               {message.sender === 'user' && message.imageDataUri && (
                 <div className="mb-2">
                   {message.imageFileName && <p className="text-xs text-primary-foreground/80 mb-1 truncate">{message.imageFileName}</p>}
-                  <NextImage src={message.imageDataUri} alt="User upload" width={200} height={200} className="rounded-md max-w-full h-auto max-h-60 object-contain" />
+                  <NextImage src={message.imageDataUri} alt="User upload" width={200} height={200} className="rounded-md max-w-full h-auto max-h-48 sm:max-h-60 object-contain" />
                 </div>
               )}
                {message.sender === 'ai' && message.aiGeneratedImageUrl && (
                 <div className="mb-2">
-                   <NextImage src={message.aiGeneratedImageUrl} alt="AI generated image" width={300} height={300} className="rounded-md max-w-full h-auto max-h-80 object-contain bg-muted" />
+                   <NextImage src={message.aiGeneratedImageUrl} alt="AI generated image" width={300} height={300} className="rounded-md max-w-full h-auto max-h-64 sm:max-h-80 object-contain bg-muted" />
                 </div>
               )}
               {displayedText ? (
-                <div className="text-sm whitespace-pre-wrap break-words">
+                <div className="text-xs sm:text-sm whitespace-pre-wrap break-words">
                   {isUser ? displayedText : renderMessageContent(displayedText).map((part, index) => <div key={index}>{part}</div>)}
                   {/* Blinking cursor removed */}
                 </div>
@@ -482,8 +505,8 @@ Respond with comprehensive human authenticity:`;
               variant="ghost"
               onClick={handleCopy}
               className={cn(
-                "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3] shadow-[0_1px_2px_hsl(var(--foreground)_/_0.07)] hover:shadow-[0_1px_3px_hsl(var(--foreground)_/_0.1)]",
-                isCopied ? "w-auto px-2 py-1 bg-green-500/15" : "w-7 px-1 justify-center", 
+                "text-muted-foreground hover:text-foreground h-6 w-6 sm:h-7 sm:w-7 rounded-md bg-card/[.15] hover:bg-card/[.3] shadow-[0_1px_2px_hsl(var(--foreground)_/_0.07)] hover:shadow-[0_1px_3px_hsl(var(--foreground)_/_0.1)]",
+                isCopied ? "w-auto px-2 py-1 bg-green-500/15" : "px-1 justify-center", 
                 "ultra-smooth-transition flex items-center"
               )}
               aria-label={isCopied ? "Copied" : "Copy message"}
@@ -491,11 +514,11 @@ Respond with comprehensive human authenticity:`;
             >
               {isCopied ? (
                 <div className="flex items-center gap-1.5">
-                  <ClipboardCheck size={15} className="text-green-600 shrink-0" />
+                  <ClipboardCheck size={14} className="sm:w-[15px] sm:h-[15px] text-green-600 shrink-0" />
                   <span className="text-xs text-green-600 whitespace-nowrap">Copied!</span>
                 </div>
               ) : (
-                <ClipboardCopy size={16} />
+                <ClipboardCopy size={14} className="sm:w-[16px] sm:h-[16px]" />
               )}
             </Button>
 
@@ -506,23 +529,23 @@ Respond with comprehensive human authenticity:`;
                 onClick={handleSimplify}
                 disabled={isSimplifying}
                 className={cn(
-                  "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
+                  "text-muted-foreground hover:text-foreground h-6 w-6 sm:h-7 sm:w-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
                   "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
                   "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
                   "border border-white/10 hover:border-white/20",
                   "backdrop-blur-sm",
-                  isSimplifying ? "w-auto px-2 py-1 bg-blue-500/15" : "w-7 px-1 justify-center", 
+                  isSimplifying ? "w-auto px-2 py-1 bg-blue-500/15" : "px-1 justify-center", 
                   "ultra-smooth-transition flex items-center"
                 )}
                 aria-label={isSimplifying ? "Simplifying..." : "Simplify text"}
               >
                 {isSimplifying ? (
                   <div className="flex items-center gap-1.5">
-                    <Loader2 size={15} className="animate-spin text-blue-600 shrink-0" />
+                    <Loader2 size={14} className="sm:w-[15px] sm:h-[15px] animate-spin text-blue-600 shrink-0" />
                     <span className="text-xs text-blue-600 whitespace-nowrap">Simplifying...</span>
                   </div>
                 ) : (
-                  <Lightbulb size={16} />
+                  <Lightbulb size={14} className="sm:w-[16px] sm:h-[16px]" />
                 )}
               </Button>
             )}
@@ -533,12 +556,12 @@ Respond with comprehensive human authenticity:`;
                 variant="ghost"
                 onClick={handleSpeak}
                 className={cn(
-                  'text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3] shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)] border border-white/10 hover:border-white/20 backdrop-blur-sm w-7 px-1 justify-center ultra-smooth-transition flex items-center',
+                  'text-muted-foreground hover:text-foreground h-6 w-6 sm:h-7 sm:w-7 rounded-md bg-card/[.15] hover:bg-card/[.3] shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)] border border-white/10 hover:border-white/20 backdrop-blur-sm px-1 justify-center ultra-smooth-transition flex items-center',
                   isSpeaking ? 'animate-pulse' : ''
                 )}
                 aria-label={isSpeaking ? 'Stop speaking' : 'Read aloud'}
               >
-                <Mic size={16} />
+                <Mic size={14} className="sm:w-[16px] sm:h-[16px]" />
               </Button>
             )}
 
@@ -550,29 +573,29 @@ Respond with comprehensive human authenticity:`;
                   onClick={toggleHumanizeOptions}
                   disabled={isHumanizing}
                   className={cn(
-                    "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
+                    "text-muted-foreground hover:text-foreground h-6 w-6 sm:h-7 sm:w-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
                     "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
                     "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
                     "border border-white/10 hover:border-white/20",
                     "backdrop-blur-sm",
-                    isHumanizing ? "w-auto px-2 py-1 bg-pink-500/15" : "w-7 px-1 justify-center", 
+                    isHumanizing ? "w-auto px-2 py-1 bg-pink-500/15" : "px-1 justify-center", 
                     "ultra-smooth-transition flex items-center"
                   )}
                   aria-label={isHumanizing ? "Humanizing..." : "Humanize text"}
                 >
                   {isHumanizing ? (
                     <div className="flex items-center gap-1.5">
-                      <Loader2 size={15} className="animate-spin text-pink-600 shrink-0" />
+                      <Loader2 size={14} className="sm:w-[15px] sm:h-[15px] animate-spin text-pink-600 shrink-0" />
                       <span className="text-xs text-pink-600 whitespace-nowrap">Humanizing...</span>
                     </div>
                   ) : (
-                    <HumanIcon size={14} />
+                    <HumanIcon size={12} className="sm:w-[14px] sm:h-[14px]" />
                   )}
                 </Button>
                 
                 {/* Smooth Options Transition */}
                 {showHumanizeOptions && (
-                  <div className="absolute top-full left-0 mt-1 bg-card/95 backdrop-blur-sm border border-border/50 rounded-md shadow-lg z-10 overflow-hidden">
+                  <div className="absolute top-full left-0 mt-1 bg-card/95 backdrop-blur-sm border border-border/50 rounded-md shadow-lg z-10 overflow-hidden min-w-[200px] sm:min-w-[220px]">
                     <div className="p-1">
                       <Button
                         variant="ghost"
@@ -580,7 +603,7 @@ Respond with comprehensive human authenticity:`;
                         className="w-full justify-start text-left h-auto p-2 hover:bg-accent/50 rounded-sm"
                       >
                         <div className="flex items-center gap-2">
-                          <Zap size={14} className="text-yellow-600 shrink-0" />
+                          <Zap size={12} className="sm:w-[14px] sm:h-[14px] text-yellow-600 shrink-0" />
                           <div className="flex flex-col">
                             <span className="text-xs font-medium">Concise Humanize</span>
                             <span className="text-xs text-muted-foreground">Brief, authentic</span>
@@ -593,7 +616,7 @@ Respond with comprehensive human authenticity:`;
                         className="w-full justify-start text-left h-auto p-2 hover:bg-accent/50 rounded-sm"
                       >
                         <div className="flex items-center gap-2">
-                          <Brain size={14} className="text-pink-600 shrink-0" />
+                          <Brain size={12} className="sm:w-[14px] sm:h-[14px] text-pink-600 shrink-0" />
                           <div className="flex flex-col">
                             <span className="text-xs font-medium">Comprehensive Humanize</span>
                             <span className="text-xs text-muted-foreground">Deep, detailed</span>
@@ -614,23 +637,23 @@ Respond with comprehensive human authenticity:`;
                     variant="ghost"
                     disabled={isSummarizing}
                     className={cn(
-                      "text-muted-foreground hover:text-foreground h-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
+                      "text-muted-foreground hover:text-foreground h-6 w-6 sm:h-7 sm:w-7 rounded-md bg-card/[.15] hover:bg-card/[.3]",
                       "shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]",
                       "hover:shadow-[0_4px_16px_rgba(0,0,0,0.16),0_2px_6px_rgba(0,0,0,0.12),inset_0_1px_2px_rgba(255,255,255,0.15)]",
                       "border border-white/10 hover:border-white/20",
                       "backdrop-blur-sm",
-                      isSummarizing ? "w-auto px-2 py-1 bg-purple-500/15" : "w-7 px-1 justify-center", 
+                      isSummarizing ? "w-auto px-2 py-1 bg-purple-500/15" : "px-1 justify-center", 
                       "ultra-smooth-transition flex items-center"
                     )}
                     aria-label={isSummarizing ? "Summarizing..." : "Summarize text"}
                   >
                     {isSummarizing ? (
                       <div className="flex items-center gap-1.5">
-                        <Loader2 size={15} className="animate-spin text-purple-600 shrink-0" />
+                        <Loader2 size={14} className="sm:w-[15px] sm:h-[15px] animate-spin text-purple-600 shrink-0" />
                         <span className="text-xs text-purple-600 whitespace-nowrap">Summarizing...</span>
                       </div>
                     ) : (
-                      <FileText size={16} />
+                      <FileText size={14} className="sm:w-[16px] sm:h-[16px]" />
                     )}
                   </Button>
                 </DropdownMenuTrigger>
@@ -639,9 +662,9 @@ Respond with comprehensive human authenticity:`;
                     onClick={() => handleSummarize('simple')}
                     className="flex items-center gap-2 cursor-pointer"
                   >
-                    <Sparkles size={16} className="text-green-600" />
+                    <Sparkles size={14} className="sm:w-[16px] sm:h-[16px] text-green-600" />
                     <div className="flex flex-col">
-                      <span className="font-medium">Simple</span>
+                      <span className="font-medium text-sm">Simple</span>
                       <span className="text-xs text-muted-foreground">Ultra simple terms</span>
                     </div>
                   </DropdownMenuItem>
@@ -649,9 +672,9 @@ Respond with comprehensive human authenticity:`;
                     onClick={() => handleSummarize('accurate')}
                     className="flex items-center gap-2 cursor-pointer"
                   >
-                    <Target size={16} className="text-blue-600" />
+                    <Target size={14} className="sm:w-[16px] sm:h-[16px] text-blue-600" />
                     <div className="flex flex-col">
-                      <span className="font-medium">Accurate</span>
+                      <span className="font-medium text-sm">Accurate</span>
                       <span className="text-xs text-muted-foreground">Extremely precise</span>
                     </div>
                   </DropdownMenuItem>

@@ -21,12 +21,12 @@ const ChatHeader: FC<ChatHeaderProps> = ({ onNewChat }) => {
   };
 
   return (
-    <header className="relative flex items-center justify-between p-4 border-b border-border sticky top-0 bg-background z-10 h-16">
+    <header className="relative flex items-center justify-between p-3 sm:p-4 border-b border-border sticky top-0 bg-background z-10 h-14 sm:h-16">
       {/* Left: Sidebar Toggle Icon */}
       <SidebarTrigger 
         aria-label="Toggle Sidebar" 
         className={cn(
-          "h-8 w-8 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
+          "h-8 w-8 sm:h-9 sm:w-9 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
           "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
           "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
           "border border-border/30 hover:border-border/60",
@@ -35,12 +35,12 @@ const ChatHeader: FC<ChatHeaderProps> = ({ onNewChat }) => {
       />
 
       {/* Center: Title */}
-      <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xl font-headline font-semibold">
+      <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg sm:text-xl md:text-2xl font-headline font-semibold">
         Pulse Chat
       </h1>
 
       {/* Right: New Chat Icon & Profile Picture Spot */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <Button 
           variant="ghost" 
           size="icon" 
@@ -48,7 +48,7 @@ const ChatHeader: FC<ChatHeaderProps> = ({ onNewChat }) => {
           aria-label="New Chat"
           disabled={isStartingNewChat}
           className={cn(
-            "h-8 w-8 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
+            "h-8 w-8 sm:h-9 sm:w-9 rounded-md bg-background/50 hover:bg-background/80 text-muted-foreground/70 hover:text-foreground",
             "shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.1),0_1px_2px_hsl(var(--foreground)_/_0.05)]",
             "hover:shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.15),0_2px_4px_hsl(var(--foreground)_/_0.08)]",
             "border border-border/30 hover:border-border/60",
@@ -56,7 +56,7 @@ const ChatHeader: FC<ChatHeaderProps> = ({ onNewChat }) => {
             isStartingNewChat ? "opacity-50" : ""
           )}
         >
-          <MessageSquarePlus className="h-4 w-4" />
+          <MessageSquarePlus className="h-4 w-4 sm:h-5 sm:w-5" />
         </Button>
         <UserProfile />
       </div>

@@ -7,6 +7,9 @@ import ReactTextareaAutosize from 'react-textarea-autosize';
 import { Rocket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { UserPreferences } from "@/lib/types";
+import AuthModal from '../auth/AuthModal';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
 
 // Constants for the placeholder animation
 const PLACEHOLDER_TEXTS = [
@@ -482,12 +485,113 @@ export const Card = ({
   );
 };
 
+// Icon Components
+export const AppleIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    xmlSpace="preserve" 
+    viewBox="0 0 512 512"
+    className={className}
+  >
+    <path d="M256 6.3C114.6 6.3 0 120.9 0 262.3c0 113.3 73.3 209 175 242.9 12.8 2.2 17.6-5.4 17.6-12.2 0-6.1-.3-26.2-.3-47.7-64.3 11.8-81-15.7-86.1-30.1-2.9-7.4-15.4-30.1-26.2-36.2-9-4.8-21.8-16.6-.3-17 20.2-.3 34.6 18.6 39.4 26.2 23 38.7 59.8 27.8 74.6 21.1 2.2-16.6 9-27.8 16.3-34.2-57-6.4-116.5-28.5-116.5-126.4 0-27.8 9.9-50.9 26.2-68.8-2.6-6.4-11.5-32.6 2.6-67.8 0 0 21.4-6.7 70.4 26.2 20.5-5.8 42.2-8.6 64-8.6s43.5 2.9 64 8.6c49-33.3 70.4-26.2 70.4-26.2 14.1 35.2 5.1 61.4 2.6 67.8 16.3 17.9 26.2 40.6 26.2 68.8 0 98.2-59.8 120-116.8 126.4 9.3 8 17.3 23.4 17.3 47.4 0 34.2-.3 61.8-.3 70.4 0 6.7 4.8 14.7 17.6 12.2C438.7 471.3 512 375.3 512 262.3c0-141.4-114.6-256-256-256" style={{fillRule:'evenodd',clipRule:'evenodd',fill:'#fff'}}/>
+  </svg>
+);
+
+export const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    xmlSpace="preserve" 
+    viewBox="0 0 512 512"
+    className={className}
+  >
+    <path d="M501.8 261.8c0-18.2-1.6-35.6-4.7-52.4H256v99.1h137.8c-6.1 31.9-24.2 58.9-51.4 77V450h83.1c48.3-44.6 76.3-110.2 76.3-188.2" style={{ fill: '#4285f4' }}/>
+    <path d="M256 512c69.1 0 127.1-22.8 169.4-61.9l-83.1-64.5c-22.8 15.4-51.9 24.7-86.3 24.7-66.6 0-123.1-44.9-143.4-105.4H27.5V371C69.6 454.5 155.9 512 256 512" style={{ fill: '#34a853' }}/>
+    <path d="M112.6 304.6c-5.1-15.4-8.1-31.7-8.1-48.6s3-33.3 8.1-48.6v-66.1H27.5C10 175.7 0 214.6 0 256s10 80.3 27.5 114.7L93.8 319c0 .1 18.8-14.4 18.8-14.4" style={{ fill: '#fbbc05' }}/>
+    <path d="M256 101.9c37.7 0 71.2 13 98 38.2l73.3-73.3C382.8 25.4 325.1 0 256 0 155.9 0 69.6 57.5 27.5 141.3l85.2 66.1c20.2-60.5 76.7-105.5 143.3-105.5" style={{ fill: '#ea4335' }}/>
+    <path d="M0 0h512v512H0z" style={{ fill: 'none' }}/>
+  </svg>
+);
+
+export const SupabaseIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    xmlSpace="preserve" 
+    viewBox="0 0 512 512"
+    className={className}
+  >
+    <defs>
+      <linearGradient id="supabaseGradient" x1="237.109" x2="419.106" y1="223.219" y2="146.89" gradientTransform="matrix(1 0 0 -1 0 513)" gradientUnits="userSpaceOnUse">
+        <stop offset="0" style={{ stopColor: '#249361' }}/>
+        <stop offset="1" style={{ stopColor: '#3ecf8e' }}/>
+      </linearGradient>
+      <linearGradient id="supabaseGradientDark" x1="245.829" x2="328.829" y1="411.681" y2="255.438" gradientTransform="matrix(1 0 0 -1 0 513)" gradientUnits="userSpaceOnUse">
+        <stop offset="0" style={{ stopColor: '#000' }}/>
+        <stop offset="1" style={{ stopColor: '#000', stopOpacity: 0 }}/>
+      </linearGradient>
+    </defs>
+    <path d="M297.6 501c-12.9 16.3-39.2 7.4-39.5-13.4L253.6 183h204.8c37.1 0 57.8 42.8 34.7 71.9z" style={{ fill: 'url(#supabaseGradient)' }}/>
+    <path d="M297.6 501c-12.9 16.3-39.2 7.4-39.5-13.4L253.6 183h204.8c37.1 0 57.8 42.8 34.7 71.9z" style={{ fill: 'url(#supabaseGradientDark)', fillOpacity: 0.2 }}/>
+    <path d="M214.4 11c12.9-16.3 39.2-7.4 39.5 13.4l2 304.5H53.7c-37.1 0-57.8-42.8-34.7-71.9z" style={{ fill: '#3ecf8e' }}/>
+  </svg>
+);
+
+export const GithubIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    xmlSpace="preserve" 
+    viewBox="0 0 512 512"
+    className={className}
+  >
+    <path d="M256 6.3C114.6 6.3 0 120.9 0 262.3c0 113.3 73.3 209 175 242.9 12.8 2.2 17.6-5.4 17.6-12.2 0-6.1-.3-26.2-.3-47.7-64.3 11.8-81-15.7-86.1-30.1-2.9-7.4-15.4-30.1-26.2-36.2-9-4.8-21.8-16.6-.3-17 20.2-.3 34.6 18.6 39.4 26.2 23 38.7 59.8 27.8 74.6 21.1 2.2-16.6 9-27.8 16.3-34.2-57-6.4-116.5-28.5-116.5-126.4 0-27.8 9.9-50.9 26.2-68.8-2.6-6.4-11.5-32.6 2.6-67.8 0 0 21.4-6.7 70.4 26.2 20.5-5.8 42.2-8.6 64-8.6s43.5 2.9 64 8.6c49-33.3 70.4-26.2 70.4-26.2 14.1 35.2 5.1 61.4 2.6 67.8 16.3 17.9 26.2 40.6 26.2 68.8 0 98.2-59.8 120-116.8 126.4 9.3 8 17.3 23.4 17.3 47.4 0 34.2-.3 61.8-.3 70.4 0 6.7 4.8 14.7 17.6 12.2C438.7 471.3 512 375.3 512 262.3c0-141.4-114.6-256-256-256" style={{fillRule:'evenodd',clipRule:'evenodd',fill:'#fff'}}/>
+  </svg>
+);
+
+const SignInIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg 
+    viewBox="0 -0.5 25 25" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <path d="M15.014 8.46835C14.7204 8.17619 14.2455 8.17737 13.9533 8.47099C13.6612 8.76462 13.6624 9.23949 13.956 9.53165L15.014 8.46835ZM16.971 12.5317C17.2646 12.8238 17.7395 12.8226 18.0317 12.529C18.3238 12.2354 18.3226 11.7605 18.029 11.4683L16.971 12.5317ZM18.029 12.5317C18.3226 12.2395 18.3238 11.7646 18.0317 11.471C17.7395 11.1774 17.2646 11.1762 16.971 11.4683L18.029 12.5317ZM13.956 14.4683C13.6624 14.7605 13.6612 15.2354 13.9533 15.529C14.2455 15.8226 14.7204 15.8238 15.014 15.5317L13.956 14.4683ZM17.5 12.75C17.9142 12.75 18.25 12.4142 18.25 12C18.25 11.5858 17.9142 11.25 17.5 11.25V12.75ZM3.5 11.25C3.08579 11.25 2.75 11.5858 2.75 12C2.75 12.4142 3.08579 12.75 3.5 12.75V11.25ZM13.956 9.53165L16.971 12.5317L18.029 11.4683L15.014 8.46835L13.956 9.53165ZM16.971 11.4683L13.956 14.4683L15.014 15.5317L18.029 12.5317L16.971 11.4683ZM17.5 11.25H3.5V12.75H17.5V11.25Z" fill="currentColor"/>
+    <path d="M9.5 15C9.5 17.2091 11.2909 19 13.5 19H17.5C19.7091 19 21.5 17.2091 21.5 15V9C21.5 6.79086 19.7091 5 17.5 5H13.5C11.2909 5 9.5 6.79086 9.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const LoginIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <path fillRule="evenodd" clipRule="evenodd" d="M10.8447 8.09467C10.5518 8.38756 10.5518 8.86244 10.8447 9.15533L12.5643 10.875H4.375C3.96079 10.875 3.625 11.2108 3.625 11.625C3.625 12.0392 3.96079 12.375 4.375 12.375H12.5643L10.8447 14.0947C10.5518 14.3876 10.5518 14.8624 10.8447 15.1553C11.1376 15.4482 11.6124 15.4482 11.9053 15.1553L14.9053 12.1553C15.1982 11.8624 15.1982 11.3876 14.9053 11.0947L11.9053 8.09467C11.6124 7.80178 11.1376 7.80178 10.8447 8.09467Z" fill="currentColor"/>
+    <path d="M12.375 5.87745C12.375 6.3254 12.6492 6.71725 12.966 7.03401L15.966 10.034C16.8447 10.9127 16.8447 12.3373 15.966 13.216L12.966 16.216C12.6492 16.5327 12.375 16.9246 12.375 17.3726V19.625C16.7933 19.625 20.375 16.0433 20.375 11.625C20.375 7.20672 16.7933 3.625 12.375 3.625V5.87745Z" fill="currentColor"/>
+  </svg>
+);
+
 // Main Hero Component
 interface HyperIronicHeroProps {
   userPreferences?: UserPreferences | null;
+  authOpen: boolean;
+  setAuthOpen: (open: boolean) => void;
+  authMode: 'signup' | 'login' | 'reset';
+  setAuthMode: (mode: 'signup' | 'login' | 'reset') => void;
 }
 
-const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) => {
+const ShineText: React.FC<{ children: string }> = ({ children }) => {
+  return (
+    <span className="shine-text">
+      {children.split('').map((char, i) => (
+        char === ' '
+          ? <span key={i} className="shine-letter" style={{ animationDelay: `${i * 0.04}s` }}>&nbsp;</span>
+          : <span key={i} className="shine-letter" style={{ animationDelay: `${i * 0.04}s` }}>{char}</span>
+      ))}
+    </span>
+  );
+};
+
+const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences, authOpen, setAuthOpen, authMode, setAuthMode }) => {
   const [mounted, setMounted] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0);
@@ -495,8 +599,13 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
   const [isTypingPlaceholder, setIsTypingPlaceholder] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
   const [showStaticPlaceholder, setShowStaticPlaceholder] = useState(false);
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
+  const { toast } = useToast();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [redirected, setRedirected] = useState(false);
 
   // Personalized suggestions based on user preferences
   const getPersonalizedSuggestions = () => {
@@ -538,13 +647,42 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
 
   const suggestions = getPersonalizedSuggestions();
 
-  const handleSuggestionClick = (suggestion: string) => {
-    router.push(`/chat?q=${encodeURIComponent(suggestion)}`);
+  const handleSuggestionClick = async (suggestion: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    console.log('handleSuggestionClick session:', session);
+    if (session && session.user && session.user.email) {
+      router.push(`/chat?q=${encodeURIComponent(suggestion)}`);
+    } else {
+      toast({
+        title: 'Please log in or sign up',
+        description: 'You need to be signed in to use Pulse AI chat.',
+      });
+      setAuthMode('login');
+      setAuthOpen(true);
+    }
   };
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      setAuthLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('DEBUG: session from supabase.auth.getSession()', session);
+      setIsAuthenticated(!!(session && session.user && typeof session.user.email === 'string' && session.user.email.length > 0));
+      setAuthLoading(false);
+    };
+    checkSession();
+    // Listen for auth state changes
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      checkSession();
+    });
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, [router, redirected]);
 
   // Animated Placeholder Effect
   useEffect(() => {
@@ -589,9 +727,75 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
     };
   }, [isFocused, currentPlaceholderIndex, inputValue]);
 
-  const handleSend = () => {
-    if (inputValue.trim()) {
-      router.push(`/chat?q=${encodeURIComponent(inputValue.trim())}&new_chat=true`);
+  const handleSend = async () => {
+    if (!inputValue.trim()) return;
+    // Check if user is authenticated and has an email and id
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user || !user.email || !user.id) {
+      toast({
+        title: 'Please log in or sign up',
+        description: 'You need to be signed in to use Pulse AI chat.',
+      });
+      setAuthMode('login');
+      setAuthOpen(true);
+      return;
+    }
+    // Only send the message if authenticated
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          query: inputValue.trim(), 
+          userEmail: user.email,
+          userId: user.id // Always pass userId
+        })
+      });
+      
+      console.log('HyperIronicHero: API response status:', response.status);
+      console.log('HyperIronicHero: API response ok:', response.ok);
+      
+      if (response.ok) {
+        const responseText = await response.text();
+        console.log('HyperIronicHero: Raw response text:', responseText);
+        console.log('HyperIronicHero: Response text length:', responseText.length);
+        console.log('HyperIronicHero: Response text first 100 chars:', responseText.substring(0, 100));
+        
+        try {
+          const data = JSON.parse(responseText);
+          console.log('HyperIronicHero: Parsed JSON data:', data);
+          
+          if (data.session_id) {
+            console.log('HyperIronicHero: Found session_id, redirecting to:', `/chat?q=${encodeURIComponent(inputValue.trim())}&session_id=${data.session_id}`);
+            
+            // Store the message in sessionStorage as backup
+            sessionStorage.setItem('pendingMessage', inputValue.trim());
+            sessionStorage.setItem('pendingSessionId', data.session_id);
+            
+            // Store user email for session persistence
+            sessionStorage.setItem('userEmail', user.email);
+            if (user.id) {
+              sessionStorage.setItem('userId', user.id);
+            }
+            
+            router.push(`/chat?q=${encodeURIComponent(inputValue.trim())}&session_id=${data.session_id}`);
+          } else {
+            console.error('HyperIronicHero: No session_id in response');
+            router.push('/chat');
+          }
+        } catch (parseError) {
+          console.error('HyperIronicHero: JSON parse error:', parseError);
+          console.log('HyperIronicHero: Raw response that failed to parse:', responseText);
+          router.push('/chat');
+        }
+      } else {
+        console.error('HyperIronicHero: API response not ok:', response.status, response.statusText);
+        router.push('/chat');
+      }
+    } catch (fetchError) {
+      console.error('HyperIronicHero: Fetch error:', fetchError);
+      router.push('/chat');
     }
   };
 
@@ -692,6 +896,100 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
             filter: blur(0);
           }
         }
+
+        .shine-text {
+          display: inline-block;
+          position: relative;
+        }
+        .shine-letter {
+          display: inline-block;
+          transition: color 0.3s;
+        }
+        .shine-text:hover .shine-letter {
+          animation: shine 0.7s cubic-bezier(0.4,0,0.2,1) forwards;
+        }
+        @keyframes shine {
+          0% { color: inherit; text-shadow: none; }
+          40% { color: #fffbe6; text-shadow: 0 0 8px #fffbe6, 0 0 16px #fffbe6; }
+          100% { color: inherit; text-shadow: none; }
+        }
+
+        /* Icon hover effects */
+        .apple-icon {
+          color: white;
+          transition: color 0.3s ease;
+        }
+        .group:hover .apple-icon {
+          color: black;
+        }
+
+        .google-icon {
+          transition: all 0.3s ease;
+        }
+        .google-icon .google-blue {
+          fill: black;
+          transition: fill 0.3s ease;
+        }
+        .google-icon .google-green {
+          fill: black;
+          transition: fill 0.3s ease;
+        }
+        .google-icon .google-yellow {
+          fill: black;
+          transition: fill 0.3s ease;
+        }
+        .google-icon .google-red {
+          fill: black;
+          transition: fill 0.3s ease;
+        }
+        .google-icon:hover .google-blue {
+          fill: #4285f4;
+        }
+        .google-icon:hover .google-green {
+          fill: #34a853;
+        }
+        .google-icon:hover .google-yellow {
+          fill: #fbbc05;
+        }
+        .google-icon:hover .google-red {
+          fill: #ea4335;
+        }
+
+        .supabase-icon {
+          color: white;
+          transition: color 0.3s ease;
+        }
+        .supabase-icon:hover {
+          color: #3ecf8e;
+        }
+
+        /* Ironic mode button animation */
+        .ironic-btn {
+          position: relative;
+          overflow: hidden;
+        }
+        .ironic-btn::after {
+          content: '';
+          position: absolute;
+          left: 0; top: 0; right: 0; bottom: 0;
+          background: linear-gradient(90deg, #fff2, #fff0 60%, #fff2);
+          opacity: 0;
+          transition: opacity 0.4s;
+          pointer-events: none;
+        }
+        .ironic-btn:hover::after {
+          opacity: 1;
+          animation: ironic-shimmer 1.2s linear infinite;
+        }
+        @keyframes ironic-shimmer {
+          0% { background-position: -100px; }
+          100% { background-position: 200px; }
+        }
+
+        /* Smooth text transition effects */
+        .smooth-text-change {
+          transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
       `}</style>
       
       <div className="w-full min-h-screen relative">
@@ -736,7 +1034,7 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.2, duration: 1.5 }}
-            className="w-full max-w-2xl mb-16"
+            className="w-full max-w-2xl mb-6"
           >
             <div className="relative flex items-center w-full">
               <ReactTextareaAutosize
@@ -748,9 +1046,10 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
                 placeholder={displayedPlaceholder || "Ask Pulse AI anything..."}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && inputValue.trim()) {
-                    handleSend();
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && inputValue.trim()) {
+                    e.preventDefault();
+                    await handleSend();
                   }
                 }}
                 className="w-full text-sm md:text-base lg:text-lg relative z-[1] flex-grow bg-transparent text-white border-zinc-600 focus:border-white ultra-smooth glass-morphism !ring-0 !ring-offset-0 resize-none transition-all duration-300 placeholder:text-zinc-400 min-h-[48px] max-h-[180px] leading-[1.5] rounded-md text-left placeholder:text-left placeholder:pl-2 placeholder:text-base py-3 pl-3 overflow-hidden pr-2 text-[16px]"
@@ -769,7 +1068,7 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
                   <Button
                     variant="default"
                     size="icon"
-                    onClick={handleSend}
+                    onClick={async () => { await handleSend(); }}
                     className="bg-white text-black hover:bg-neutral-200 h-10 w-10 ultra-smooth"
                     aria-label="Send message"
                   >
@@ -779,6 +1078,45 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
               )}
             </div>
           </motion.div>
+
+          {/* Auth Mode Buttons - now after input, before provider buttons */}
+          { (!authLoading && !isAuthenticated) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.2, duration: 1.5 }}
+            className="flex flex-row items-center justify-center gap-6 w-full mb-12 mt-16"
+          >
+            <Button
+              onClick={() => { setMode('signup'); setAuthMode('signup'); setAuthOpen(true); }}
+              className={cn(
+                "group w-48 h-12 text-lg glass-morphism ultra-smooth border border-white/20 shadow-[0_2px_16px_rgba(255,255,255,0.08)] active:scale-95 px-0 py-0 text-white font-semibold rounded-xl backdrop-blur-lg bg-white/10 transition-colors",
+                mode === 'signup' ? 'bg-white/20 border-white/40' : ''
+              )}
+              style={{ fontWeight: 600 }}
+              variant="ghost"
+            >
+              <span className="flex items-center justify-center gap-3 w-full">
+                <SignInIcon className="w-10 h-10" />
+                <ShineText>{mode === 'signup' ? 'Sign up' : 'Sign up'}</ShineText>
+              </span>
+            </Button>
+            <Button
+              onClick={() => { setMode('login'); setAuthMode('login'); setAuthOpen(true); }}
+              className={cn(
+                "group w-48 h-12 text-lg glass-morphism ultra-smooth border border-white/20 shadow-[0_2px_16px_rgba(255,255,255,0.08)] active:scale-95 px-0 py-0 text-white font-semibold rounded-xl backdrop-blur-lg bg-white/10 transition-colors",
+                mode === 'login' ? 'bg-white/20 border-white/40' : ''
+              )}
+              style={{ fontWeight: 600 }}
+              variant="ghost"
+            >
+              <span className="flex items-center justify-center gap-3 w-full">
+                <LoginIcon className="w-10 h-10" />
+                <ShineText>{mode === 'login' ? 'Log in' : 'Log in'}</ShineText>
+              </span>
+            </Button>
+          </motion.div>
+          )}
 
           {/* Suggestions Marquee */}
           <motion.div
@@ -803,6 +1141,18 @@ const HyperIronicHero: React.FC<HyperIronicHeroProps> = ({ userPreferences }) =>
           </motion.div>
         </div>
       </div>
+      <AuthModal
+        open={authOpen}
+        mode={authMode}
+        onOpenChange={(open) => {
+          setAuthOpen(open);
+          if (open) {
+            setAuthMode(mode);
+          }
+          // No reload or polling needed; UI will update based on session state
+        }}
+        onModeChange={setAuthMode}
+      />
     </>
   );
 };

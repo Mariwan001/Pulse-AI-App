@@ -12,6 +12,8 @@ export interface Message {
   relatedToUserMessageId?: string; // ID of the user message this AI message is a response to
   imageUrl?: string; // Optional: for image URLs
   imageFileUrl?: string; // Optional: for image file URLs
+  userId?: string; // Add userId for avatar logic
+  userEmail?: string; // Add userEmail for avatar logic
 }
 
 export interface ChatSession {
