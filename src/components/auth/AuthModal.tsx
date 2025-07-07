@@ -23,8 +23,16 @@ interface AuthModalProps {
 }
 
 // Social login handler
-const handleSocialLogin = async (provider: 'google' | 'apple' | 'github', setLoading: (b: boolean) => void, setError: (msg: string) => void) => {
-  setLoading(true);
+const handleSocialLogin = async (
+  provider: 'google' | 'apple' | 'github',
+  setLoading: (provider: 'email' | 'google' | 'github' | null) => void,
+  setError: (msg: string) => void
+) => {
+  if (provider === 'google' || provider === 'github') {
+    setLoading(provider);
+  } else {
+    setLoading(null);
+  }
   setError('');
   
   // Check if there's an anonymous session to link
@@ -40,7 +48,7 @@ const handleSocialLogin = async (provider: 'google' | 'apple' | 'github', setLoa
     },
   });
   if (error) setError(error.message);
-  setLoading(false);
+  setLoading(null);
 };
 
 export const AuthModal: React.FC<AuthModalProps> = ({ open, mode, onOpenChange, onModeChange }) => {
@@ -53,7 +61,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, mode, onOpenChange, 
     if (open) setAnimatingMode(mode);
   }, [open, mode]);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+  const [loadingProvider, setLoadingProvider] = useState<'email' | 'google' | 'github' | null>(null);
   const [socialError, setSocialError] = useState('');
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
 

@@ -57,6 +57,21 @@ async function getUserPreferences(userEmail: string): Promise<UserPreferences | 
   }
 }
 
+async function getUserIdByEmail(userEmail: string): Promise<string | null> {
+  try {
+    const supabaseAdmin = getSupabaseAdminClient();
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', userEmail)
+      .single();
+    if (error || !data) return null;
+    return data.id;
+  } catch {
+    return null;
+  }
+}
+
 async function* generateHumanizedAIResponse(
   prompt: string,
   userEmail?: string,
@@ -66,18 +81,20 @@ async function* generateHumanizedAIResponse(
   let userData: any = null;
   let userPreferences: UserPreferences | null = null;
   let history: any[] = [];
+  let userId: string | null = null;
 
   if (userEmail) {
     const promises = [
       getUserData(userEmail),
       getUserPreferences(userEmail),
       sessionId ? getChatHistory(userEmail, sessionId) : Promise.resolve([]),
+      getUserIdByEmail(userEmail),
     ];
-
-    const [userDataResult, userPreferencesResult, historyResult] = await Promise.all(promises);
+    const [userDataResult, userPreferencesResult, historyResult, userIdResult] = await Promise.all(promises);
     userData = userDataResult;
     userPreferences = userPreferencesResult as UserPreferences | null;
     history = historyResult as any[];
+    userId = userIdResult as string | null;
   }
 
   const updateUserProfileTool = {
@@ -314,7 +331,7 @@ You are now operating in ULTRA-HUMANIZATION mode. This is a special mode that ma
     }
 
     if (userEmail && sessionId && response.trim()) {
-      await saveMessageToHistory({ userEmail, sessionId, role: 'assistant', content: response });
+      await saveMessageToHistory({ userEmail, userId: userId || '', sessionId, role: 'assistant', content: response });
     }
   } catch (error) {
     console.error('Error in generateHumanizedAIResponse:', error);
@@ -326,17 +343,17 @@ export async function POST(req: Request) {
   try {
     const { query, userEmail, sessionId } = await req.json();
     const abortSignal = req.signal;
-
-    if (userEmail && sessionId) {
-      await saveMessageToHistory({ userEmail, sessionId, role: 'user', content: query });
+    let userId: string | null = null;
+    if (userEmail) {
+      userId = await getUserIdByEmail(userEmail);
     }
-
+    if (userEmail && sessionId) {
+      await saveMessageToHistory({ userEmail, userId: userId || '', sessionId, role: 'user', content: query });
+    }
     const stream = generateHumanizedAIResponse(query, userEmail, sessionId, abortSignal);
-    
     return new Response(AIStream(stream), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });
-
   } catch (error) {
     if ((error as any).name === 'AbortError') {
       return new NextResponse('Stream aborted', { status: 499 });
