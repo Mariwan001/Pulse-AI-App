@@ -303,7 +303,7 @@ async function* generateAIResponse(
 export async function POST(req: Request) {
   try {
     console.log('API: POST request received');
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    const url = new URL(req.url, `http://${req.headers.get('host')}`);
     const persona = url.searchParams.get('persona');
     const selectedPrompt = persona === 'ultra-coder' ? ultraAICoderPrompt : systemPrompt;
 
