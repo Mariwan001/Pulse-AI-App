@@ -66,7 +66,7 @@ async function getUserIdByEmail(userEmail: string): Promise<string | null> {
       .eq('email', userEmail)
       .single();
     if (error || !data) return null;
-    return data.id;
+    return (data as { id: string | null }).id;
   } catch {
     return null;
   }
